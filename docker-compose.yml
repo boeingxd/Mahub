@@ -1,5 +1,5 @@
-# Local development stack. For now it runs only the database;
-# api, web and caddy get added in later steps (see PROJECT_PLAN.md §9).
+# Local development stack: the database and the API.
+# web and caddy get added in later steps (see PROJECT_PLAN.md §9).
 #
 #   docker compose up -d      start in the background
 #   docker compose ps         see what's running
@@ -31,6 +31,31 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      # Inside Compose, containers reach each other by service name, so the
+      # host is "db", not "localhost" (localhost would be the api container itself).
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/mahub?sslmode=disable
+      # Listen on all interfaces inside the container so the port mapping can reach it.
+      API_HOST: 0.0.0.0
+      API_PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # Temporary: lets you curl the API directly while we build it.
+      # Issue #10 removes this so the API is reachable only through Caddy.
+      - "127.0.0.1:${API_PORT:-3000}:3000"
+    healthcheck:
+      # "Healthy" means ready to serve: the API answers AND can reach the DB.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/readyz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
 volumes:
   db-data:
