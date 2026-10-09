@@ -1,0 +1,36 @@
+# Local development stack. For now it runs only the database;
+# api, web and caddy get added in later steps (see PROJECT_PLAN.md §9).
+#
+#   docker compose up -d      start in the background
+#   docker compose ps         see what's running
+#   docker compose logs db    read the database's logs
+#   docker compose down       stop (your data is kept in the volume)
+#   docker compose down -v    stop AND delete all data (fresh start)
+
+services:
+  db:
+    # PostgreSQL 16 with PostGIS 3.5 (geography types for the geofence).
+    # imresamu/postgis is published by a maintainer of the official postgis
+    # images and, unlike postgis/postgis, includes Apple Silicon (arm64) builds.
+    image: imresamu/postgis:16-3.5
+    restart: unless-stopped
+    environment:
+      # No POSTGRES_DB on purpose: this image auto-installs PostGIS into that
+      # database. We let it create only the default "postgres" database and
+      # create "mahub" with `dbmate create`, so migrations control every extension.
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      # Only listen on 127.0.0.1 so the DB isn't reachable from other machines on your Wi-Fi.
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      # Data lives in a named volume, so it survives container restarts.
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:
