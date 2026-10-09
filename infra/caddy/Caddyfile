@@ -7,14 +7,21 @@
 	# trust store of the machine it runs on. Inside a container that's
 	# pointless (your Mac is what needs to trust it; see docs/NETWORK.md).
 	skip_install_trust
+
+	# The real visitor's address, for the :8080 door below (the tunnel).
+	# Cloudflare puts it in the CF-Connecting-IP header, but anyone can send a
+	# header like that, so Caddy believes it ONLY when the request comes from
+	# the tunnel container (the fixed address set in docker-compose.yml).
+	# From anyone else the header is ignored and {client_ip} is the real
+	# connection address.
+	servers :8080 {
+		trusted_proxies static 172.28.1.10/32
+		client_ip_headers CF-Connecting-IP
+	}
 }
 
-localhost {
-	# "internal" = Caddy acts as its own small certificate authority and
-	# issues a certificate for localhost. (Real domains would get one from
-	# Let's Encrypt automatically.) Plain http://localhost is redirected here.
-	tls internal
-
+# Everything the site does, written once and used by both doors below.
+(routes) {
 	# Security headers, added to every response.
 	header {
 		# HSTS: "only ever use HTTPS for this site". The browser remembers it
@@ -44,16 +51,22 @@ localhost {
 	# /api/* → the API. handle_path strips the /api prefix, so the API's own
 	# routes stay short: https://localhost/api/healthz reaches GET /healthz.
 	handle_path /api/* {
-		reverse_proxy api:3000
+		reverse_proxy api:3000 {
+			header_up X-Forwarded-For {client_ip}
+		}
 	}
 
 	# QR scan links (task Y3) and the live roster WebSocket (task B5) also go
 	# to the API, with their paths unchanged.
 	handle /c/* {
-		reverse_proxy api:3000
+		reverse_proxy api:3000 {
+			header_up X-Forwarded-For {client_ip}
+		}
 	}
 	handle /ws {
-		reverse_proxy api:3000
+		reverse_proxy api:3000 {
+			header_up X-Forwarded-For {client_ip}
+		}
 	}
 
 	# Everything else is the React web app: plain files built by Vite into /srv.
@@ -73,4 +86,21 @@ localhost {
 		try_files {path} /index.html
 		file_server
 	}
+}
+
+# Door 1: your browser on the laptop, over HTTPS.
+localhost {
+	# "internal" = Caddy acts as its own small certificate authority and
+	# issues a certificate for localhost. (Real domains would get one from
+	# Let's Encrypt automatically.) Plain http://localhost is redirected here.
+	tls internal
+
+	import routes
+}
+
+# Door 2: the Cloudflare Tunnel (task B4). Plain HTTP on purpose: HTTPS ends at
+# Cloudflare, and this port is not published, so it only exists inside Docker
+# (the tunnel container reaches it as http://caddy:8080).
+:8080 {
+	import routes
 }

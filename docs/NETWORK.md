@@ -4,12 +4,24 @@ How a request travels through Mahub, which ports are open, and who trusts whom. 
 
 ## The hops
 
+Two ways in, both ending at Caddy. Your browser uses door 1. Phones use door 2 (the tunnel, started only when you need it).
+
 ```
- Your browser (on the laptop)
-      │  HTTPS  https://localhost        (port 443; port 80 only redirects to 443)
-      ▼
+ A phone on mobile data              Your browser (on the laptop)
+      │  HTTPS  https://xxxx.trycloudflare.com        │  HTTPS  https://localhost
+      ▼                                               │  (port 443; port 80 only redirects to 443)
+ Cloudflare  (HTTPS ends here)                        │
+      │  a connection that cloudflared opened         │
+      │  OUT from your laptop                         │
+      ▼                                               │
+ ┌─────────────────────────────┐                      │
+ │ tunnel (cloudflared)        │                      │
+ │  172.28.1.10, not published │                      │
+ └──────────────┬──────────────┘                      │
+                │  plain HTTP, caddy:8080 (door 2)    │
+                ▼                                     ▼
  ┌─────────────────────────────────────────────────────────────┐
- │ caddy            published on 127.0.0.1:80 and :443         │
+ │ caddy   door 1: 127.0.0.1:80/:443   door 2: :8080 (Docker)  │
  │  · TLS with its own local certificate authority             │
  │  · adds security headers to every response                  │
  │  · sets a fresh X-Request-Id and the real X-Forwarded-For   │
@@ -34,7 +46,8 @@ How a request travels through Mahub, which ports are open, and who trusts whom. 
 
 | Service | Inside Docker | On the laptop | Reachable from your Wi-Fi? |
 |---|---|---|---|
-| caddy | 80, 443 | 127.0.0.1:80, 127.0.0.1:443 | No (127.0.0.1 only). Phones come in through the tunnel (task B4) |
+| caddy | 80, 443, 8080 | 127.0.0.1:80, 127.0.0.1:443 (8080 is not published) | No (127.0.0.1 only). Phones come in through the tunnel |
+| tunnel | none | not published | It only dials out to Cloudflare |
 | api | 3000 | not published | No |
 | db | 5432 | 127.0.0.1:5432 | No |
 
@@ -53,6 +66,7 @@ How a request travels through Mahub, which ports are open, and who trusts whom. 
 
 ## Who trusts whom
 
+- **Through the tunnel, the real client IP is in `CF-Connecting-IP`.** Anyone can send a header with that name, so Caddy believes it only when the request comes from the tunnel container, which has a fixed address (`172.28.1.10`, `trusted_proxies` in the Caddyfile). Door 2 then copies that IP into `X-Forwarded-For` for the API. Door 1 does the same with the real connection address. From anyone else the header is ignored. (Rate limits in B7 use this IP; it's never stored.)
 - **The real client IP.** Caddy overwrites `X-Forwarded-For` with the address it actually received the connection from, so a visitor can't fake it. The API believes that header only when the request comes from `172.28.1.0/24` (`TRUST_PROXY`), the `frontend` network where Caddy lives. Tests in `api/test/health.test.ts` check both cases.
 - **Request IDs.** Caddy replaces any `X-Request-Id` the client sends with a fresh UUID. The API logs it on every line and returns it in the response, so one ID traces a request through both services.
 - **No IPs stored** (ADR 0006). The API doesn't log IPs, and Caddy's access log is off.
@@ -69,6 +83,22 @@ rm caddy-root.crt
 ```
 
 Restart the browser, then open https://localhost/api/healthz: padlock, no warning. Only redo this if you delete the volume (`docker compose down -v`).
+
+## Phone testing (the Cloudflare Tunnel)
+
+A phone can't reach `https://localhost`, that is your laptop only. The tunnel gives your laptop a temporary public HTTPS address. Phones need HTTPS to allow the location prompt.
+
+```bash
+docker compose --profile tunnel up -d tunnel      # start it
+docker compose logs tunnel | grep trycloudflare   # find the address
+docker compose stop tunnel                         # stop it when you're done
+```
+
+- The first start can take a minute: it retries a few times before Cloudflare answers.
+- **Anyone who has the address can open the app while the tunnel is running.** Stop it when you aren't testing, and don't post the address in public.
+- **The address changes every time the tunnel restarts.** When login exists, the Google OAuth redirect URI (`https://<address>/api/auth/callback`) must be updated in the Google console (Yayikast) each time. Quick tunnels have no uptime guarantee, so start it early before a demo.
+- Test it: on your phone, with Wi-Fi off (mobile data), open the address. You should see the app with a padlock. On `/checkin`, tap **Share my location**; the browser asks for permission.
+- Door 2 (`caddy:8080`) is plain HTTP and only exists inside Docker. Don't publish it in `docker-compose.yml`.
 
 ## Check it yourself
 
