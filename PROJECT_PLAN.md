@@ -1,332 +1,234 @@
 # Mahub: Secure Attendance System (Project Plan)
 
-> Read this file before writing code. It is the spec for the whole project.
-> Mahub replaces the *SIIT Smart Attendance* MVP (React + Supabase). We keep what worked and rebuild with **database design**, **database security** and **networking** as the main strengths.
-> The team is new to databases and backend work, so the plan is a **step-by-step learning path** (see §9). Each step ends with something you can see working.
-> Decisions are recorded in `docs/decisions/` (ADRs 0001–0007).
+> Read this before writing code. It is the spec.
+> **New to all this?** Read [docs/BASICS.md](docs/BASICS.md) first (15 minutes).
+> Timeline: **2 weeks to a working demo + 1 buffer week** (ADR 0008 explains why the plan shrank).
+> Mahub is graded in two courses: **Database Systems** and **Computer Networks**. Every feature below is either core to the app or shows a skill one of those courses grades.
 
 ---
 
 ## 1. What we are building
 
-A web app for taking attendance in university classes:
+A web app that takes attendance in a university class:
 
-1. During class, the instructor **opens a check-in window** and projects a **QR code that changes every 10 seconds**.
-2. Students scan it with their phones and sign in with **Google**: students with their SIIT account, instructors with any Google account an admin has registered (ADR 0007).
-3. The server checks the evidence (a valid QR, the right student, enrolled in the section, physically in the room) and records attendance **in one database transaction**.
-4. The instructor watches a **live roster** fill in, closes the window, and later exports reports.
+1. The instructor signs in and clicks **Open check-in** for their section.
+2. The projector shows a **QR code that changes every 10 seconds**, so a photo sent to a friend stops working almost at once.
+3. A student scans it, signs in with their **SIIT Google account**, and allows location.
+4. The server checks: valid QR, enrolled in the section, window open, and within the room's radius. Then it saves attendance in **one database transaction**.
+5. The instructor's **roster updates live**. Every attempt, including failed ones, is logged as anti-cheating evidence.
 
-### Goals (in priority order)
-1. **Hard to cheat.** Checking in for an absent friend, or from outside the room, should be hard, and every attempt is logged.
-2. **Strong database design.** A normalised schema with constraints, built only from migrations.
-3. **Strong database security.** Least privilege, row-level security (RLS), an append-only audit log, no way for a user to promote their own role, and privacy by design (store nothing we don't need).
-4. **Strong networking.** We run our own edge server (Caddy) for HTTPS, security headers and rate limits; a real-time WebSocket roster; resilience on bad classroom Wi-Fi; and a measured load capacity.
-5. UI/UX: clean and functional, the lowest priority.
+**Demo goal (Fri 23 Oct):** steps 1–5 work end to end on real phones.
 
-### Non-goals
-- Native mobile apps (it's a web app)
-- Integration with the registrar system (we import CSV instead)
-- Device binding or passkeys (ADR 0004)
-- A "late" status or automatically closing check-in windows (ADR 0005)
+### Priorities
+1. Hard to cheat (server decides everything, every attempt logged).
+2. Database design (normalised tables, constraints, views, a transaction, a trigger).
+3. Database security (DB roles, least privilege, row-level security, no self-promotion to admin, no raw GPS/IP stored).
+4. Networking (Docker networks, Caddy reverse proxy with HTTPS and headers, real client IP, WebSocket, tunnel, rate limits, load test).
+5. UI: plain and functional.
+
+### Not doing
+Native apps, registrar integration, device binding (ADR 0004), a "late" status or auto-close (ADR 0005), excuse requests, CSV import, a VPS deploy, pgTAP.
 
 ---
 
-## 2. Lessons from the predecessor
+## 2. Lessons from the old app (each gets a test)
 
-### Keep
-- **The server makes every decision.** The client never writes attendance.
-- **A scan survives the login redirect.** Scanning creates a short-lived claim that lasts through the Google login round-trip.
-- **`UNIQUE(class_session_id, student_id)`** in the database stops duplicate check-ins.
-- **The live roster is driven by database change events**, not polling.
-- **Who may sign in is decided on the server** after verifying the Google ID token (ADR 0007).
+The predecessor (React + Supabase) had these bugs. Each one gets a test that fails if the bug comes back.
 
-### Fix (each bug gets a test that fails if it comes back)
-| Predecessor bug | Root cause | Rule for this project |
-|---|---|---|
-| Students could set their own `users.role` to `admin` | An update policy with no column restriction | Roles live in a separate `user_roles` table that only admins can write |
-| The geofence was skipped by sending `lat: "x"` (`NaN > radius` is false) | No input validation | Validate every request body with zod. Add DB CHECK constraints |
-| Any student could create a class and run sessions | The insert policy checked ownership but not role | Every write path checks **role and ownership** (RLS + tests) |
-| A claim could be used twice by concurrent requests | Check, insert and delete ran outside a transaction | Use claims atomically: `DELETE … RETURNING` in the same transaction as the insert |
-| The schema could not be rebuilt from the repo | Tables were created in a dashboard | **Migrations are the only source of truth** |
-| CORS `*`, raw errors leaked, no rate limiting | Platform defaults | Origin allowlist, error codes only, rate limits at the edge and in the app |
-| The QR wrote to the database every 10s | Tokens were stored rows | **Stateless HMAC tokens** (§5) |
-| The "fingerprint" field was always true | Never implemented | Removed. We don't claim device binding we don't have (ADR 0004) |
-| Raw GPS was kept forever | No retention policy | **Raw GPS and IPs are never stored** (ADR 0006) |
+| Old bug | Our rule |
+|---|---|
+| A student set their own `users.role` to `admin` | No `role` column. Roles live in `user_roles`, only admins can write it (RLS) |
+| The GPS check was skipped by sending `lat: "x"` | Validate every request body with zod; CHECK constraints in the DB |
+| Any student could create a class | Every write checks **role and ownership** (RLS) |
+| One check-in counted twice under concurrent requests | Check-in is one transaction; `PRIMARY KEY (class_session_id, student_id)` |
+| Tables were made by clicking in a dashboard | **Migrations are the only source of truth** |
+| CORS `*`, raw errors shown to users, no rate limit | Origin allowlist, error codes only, rate limits |
+| The QR wrote to the DB every 10 s | Stateless HMAC tokens (§5) |
+| Raw GPS kept forever | Never store raw GPS or IPs (ADR 0006) |
 
 ---
 
 ## 3. Architecture
 
 ```
-┌────────────┐   ┌────────────┐
-│ Student    │   │ Projector  │   (browser)
-│ phone      │   │ screen     │
-└─────┬──────┘   └─────┬──────┘
-      │ HTTPS + WSS    │
-┌─────▼────────────────▼──────────────────────────┐
-│ Edge: Caddy                                      │
-│  TLS · HSTS · CSP · CORS allowlist · rate limit  │
-└─────────────────────┬───────────────────────────┘
-┌─────────────────────▼───────────────────────────┐
-│ API: Node 22 + TypeScript + Fastify              │
-│  /auth     Google sign-in, login sessions        │
-│  /checkin  claim + verify + record (one tx)      │
-│  /admin    sections, rooms, enrollments, reports │
-│  /ws       live roster hub (WebSocket)           │
-└──────────┬───────────────────────▲──────────────┘
-           │ SQL (connection pool) │ LISTEN/NOTIFY
-┌──────────▼───────────────────────┴──────────────┐
-│ PostgreSQL 16 + PostGIS                          │
-│  schemas: api · private · audit                  │
-│  RLS on every api table · audit triggers         │
-└──────────────────────────────────────────────────┘
-Everything runs locally with Docker Compose; the same setup is deployed to a VPS in M4 (ADR 0003).
+ Student phone / Projector / Instructor laptop   (browser)
+                 │  HTTPS + WSS
+        ┌────────▼─────────┐
+        │ Cloudflare Tunnel │  public HTTPS address for phones (demo + testing)
+        └────────┬─────────┘
+        ┌────────▼─────────┐
+        │ Caddy (edge)      │  TLS, security headers, X-Forwarded-For, serves web/
+        └───┬──────────┬───┘
+            │ /api, /ws│ /
+   ┌────────▼───┐  ┌───▼──────┐
+   │ API        │  │ Web      │  React + Vite (static files)
+   │ Fastify    │  └──────────┘
+   └────┬───▲───┘
+   SQL  │   │ LISTEN/NOTIFY
+   ┌────▼───┴────────────────┐
+   │ PostgreSQL 16 + PostGIS  │  schemas api · private · audit, RLS
+   └──────────────────────────┘
+ All of it runs in Docker Compose on one laptop. Only Caddy is reachable from outside.
 ```
 
-### Stack
-| Area | Choice | ADR |
-|---|---|---|
-| Database | PostgreSQL 16 + PostGIS (Docker image `imresamu/postgis:16-3.5`, which has Apple Silicon builds) | — |
-| Migrations | `dbmate` (plain SQL files with `up` and `down` sections) | 0001 |
-| DB tests | pgTAP (SQL tests for constraints and RLS) | — |
-| API | Node 22 + TypeScript + Fastify, zod for validation, `pg` for SQL, vitest for tests | 0001 |
-| Login | Our own Google sign-in via `openid-client`; login sessions stored in Postgres; HttpOnly cookie | 0002 |
-| Real-time | WebSocket hub fed by Postgres `LISTEN/NOTIFY` | — |
-| Edge | Caddy | 0003 |
-| Frontend | React + Vite, plain CSS | — |
-| Hosting | Docker Compose locally, a VPS for staging/demo, Cloudflare Tunnel for phone testing during development | 0003 |
-| Load testing | k6 | — |
-| CI | GitHub Actions | — |
+| Area | Choice |
+|---|---|
+| Database | PostgreSQL 16 + PostGIS (`imresamu/postgis:16-3.5`) |
+| Migrations | `dbmate`, plain SQL with `-- migrate:up` / `-- migrate:down` |
+| API | Node 22 + TypeScript + Fastify, zod, `pg`, vitest (ADR 0001) |
+| Login | Google OpenID Connect via `openid-client`, encrypted session cookie (ADR 0002, amended by 0008) |
+| Real-time | WebSocket fed by Postgres `LISTEN/NOTIFY` |
+| Edge | Caddy |
+| Frontend | React + Vite, plain CSS |
+| Hosting | Docker Compose on a laptop + Cloudflare Tunnel (ADR 0003, amended by 0008) |
+| Tests | vitest for the API **and** the database security tests (one tool) |
+| Load test | k6 |
 
 ---
 
 ## 4. Database design
 
-### 4.1 Entities
-```
-terms ─┬─< courses ─< sections ─┬─< enrollments >── users
-                                └─< class_sessions ─┬─< attendance >── users
-                                                    ├─< checkin_attempts
-                                                    └─< checkin_claims
-rooms ─< class_sessions (geofence copied when the session opens)
-users ─< user_roles
-users ─< students (student profile: student_no)
-users ─< auth_sessions
-attendance ─< excuse_requests
-audit.events (append-only, written by triggers)
-```
-> Naming: **`class_sessions`** are attendance windows in a class. **`auth_sessions`** are login sessions. They have separate names so they're never confused.
+### 4.1 Tables (11)
 
-### 4.2 Tables
+```
+courses ─< sections >─ users (instructor)
+              │ ├─< enrollments >── students ── users
+              │ └─< class_sessions ─┬─< attendance >── students
+rooms ────────┘ (copied on open)    └─< checkin_attempts
+users ─< user_roles
+audit.events  (written by a trigger)
+```
+
 | Table | Key columns | Notes |
 |---|---|---|
-| `users` | id, email (citext, unique), google_sub (unique, null until first login), full_name, created_at | No `role` column. No domain CHECK, because instructors may use non-SIIT Google accounts (ADR 0007) |
-| `students` | user_id (PK, FK → users), student_no (unique, CHECK `^[0-9]{10}$`) | Student profile. `student_no` comes from the SIIT email prefix |
-| `user_roles` | user_id, role (`enum app_role`: student, instructor, admin), granted_by, granted_at | PK(user_id, role). Only admins can write. Audited |
-| `auth_sessions` | id, user_id, token_hash, created_at, expires_at | Login sessions. The cookie holds the token; the DB stores only its hash |
-| `terms` | id, code (`2026-1`), starts_on, ends_on | CHECK starts_on < ends_on |
-| `courses` | id, code (`ITS332`), name | unique(code) |
-| `sections` | id, course_id, term_id, section_no, instructor_id, required_rate (default 80) | unique(course_id, term_id, section_no) |
-| `rooms` | id, name, building, location `geography(Point)`, radius_m, campus_cidrs `cidr[]` | CHECK radius_m between 10 and 500 |
-| `enrollments` | section_id, student_id, enrolled_at | PK(section_id, student_id) |
-| `class_sessions` | id, section_id, room_id, location, radius_m, opened_by, opened_at, closed_at | Geofence copied from the room on open. Partial unique index: one open session per section |
-| `private.class_session_secrets` | class_session_id, token_secret (bytea) | The app reaches it only through a SECURITY DEFINER function |
-| `attendance` | class_session_id, student_id, status (`present`/`excused`), method (`qr`/`manual`), recorded_at, recorded_by, distance_m, gps_accuracy_m, on_campus, risk_flags | PK(class_session_id, student_id). **Absent = enrolled with no row**, derived in a view |
-| `checkin_attempts` | id, class_session_id, user_id, at, outcome (enum), distance_m, gps_accuracy_m, on_campus | Every attempt, including failures. Used for fraud review |
-| `checkin_claims` | id, class_session_id, user_id (null until login), expires_at | Single-use, 90s TTL |
-| `excuse_requests` | id, class_session_id, student_id, reason, status, decided_by, decided_at | pending → approved/rejected. Approval inserts an `excused` attendance row |
-| `audit.events` | id, at, actor, table_name, op, row_pk, before, after | Written by triggers. Nobody has UPDATE or DELETE |
+| `users` | id uuid, email citext unique, google_sub unique (null until first login), full_name, created_at | **No `role` column** |
+| `user_roles` | user_id, role (`app_role`: student/instructor/admin), granted_by, granted_at | PK(user_id, role). Only admins write it |
+| `students` | user_id PK → users, student_no unique CHECK `^[0-9]{10}$` | From the email prefix (ADR 0007) |
+| `courses` | id, code unique (`ITS332`), name | |
+| `sections` | id, course_id, term text (`2026-1`), section_no, instructor_id → users | unique(course_id, term, section_no) |
+| `rooms` | id, name, location `geography(Point)`, radius_m CHECK 10–500, campus_cidrs `cidr[]` | |
+| `enrollments` | section_id, student_id | PK(section_id, student_id) |
+| `class_sessions` | id, section_id, room_id, location, radius_m, opened_by, opened_at, closed_at | Geofence copied from the room on open. **Partial unique index: one open session per section** |
+| `attendance` | class_session_id, student_id, status (`present`/`excused`), method (`qr`/`manual`), recorded_at, recorded_by, distance_m, gps_accuracy_m, on_campus, risk_flags text[] | PK(class_session_id, student_id). **Absent = enrolled with no row**, derived in a view |
+| `checkin_attempts` | id, class_session_id, user_id, at, outcome (`attempt_outcome` enum), distance_m, gps_accuracy_m, on_campus | Every attempt, including failures |
+| `audit.events` | id, at, actor, table_name, op, row_pk, before jsonb, after jsonb | Trigger-written. Nobody can UPDATE or DELETE |
 
-### 4.3 Design rules
-- `uuid` PKs (or natural composite PKs), `timestamptz` timestamps, `NOT NULL` unless null has a clear meaning.
-- Enums for statuses (`attendance_status`, `attempt_outcome`, `app_role`, `excuse_status`).
-- **CHECK constraints** for anything with a valid range (radius, rates, time ordering, accuracy ≥ 0).
-- Every FK has an explicit `ON DELETE`. Prefer `RESTRICT`, plus soft-delete (`archived_at`) for academic records.
-- Index every FK used in joins, plus partial indexes for hot paths (`class_sessions WHERE closed_at IS NULL`).
-- Reports come from **views** (`v_session_roster`, `v_section_attendance_rate`), never from client-side aggregation.
+### 4.2 Design rules
+- `uuid` PKs (or natural composite PKs), `timestamptz`, `NOT NULL` unless null means something.
+- Enums for statuses. CHECK constraints for ranges (radius, accuracy ≥ 0, opened_at < closed_at).
+- Every FK has an explicit `ON DELETE` (default `RESTRICT`). Index FKs used in joins.
+- Reports come from **views**: `v_session_roster` (present / excused / absent per session) and `v_section_attendance_rate`. Never computed in the browser.
+
+### 4.3 Database security
+- **Schemas:** `api` (tables), `private` (helper functions), `audit` (append-only log).
+- **Roles:** `migrator` (runs migrations), `app_rw` (the API; subject to RLS), `app_ro` (reports, read-only), `auditor` (reads `audit` only). No superuser at runtime.
+- **RLS on every `api` table.** Per request, the API runs `SET LOCAL app.user_id = '<uuid>'` inside a transaction; policies read it via `private.current_user_id()`.
+- **SECURITY DEFINER** helpers (e.g. `private.has_role()`) use `SET search_path = pg_catalog, private`.
+- **Privacy (ADR 0006):** store `distance_m`, `gps_accuracy_m`, `on_campus` only. Never raw lat/lng or IP.
 
 ---
 
 ## 5. Check-in protocol
 
-### 5.1 Rotating QR (stateless)
+### 5.1 Rotating QR (no DB write per rotation)
 ```
-window = floor(unix_time / 10)
-token  = base64url( HMAC-SHA256(token_secret, class_session_id || window) )[0..16]
+window = floor(unix_seconds / 10)
+token  = base64url( HMAC-SHA256(QR_SECRET, class_session_id + ":" + window) ), first 16 chars
 QR URL = https://<host>/c/<class_session_id>.<window>.<token>
 ```
-- The server accepts `window ∈ {now-1, now, now+1}` (±10s of clock skew).
-- **No database write per rotation.** The projector gets the current token from the API or over the WebSocket.
+`QR_SECRET` lives in `.env`. The server accepts `window` ∈ {now−1, now, now+1} (±10 s clock skew).
 
 ### 5.2 Flow
-1. The student opens the QR URL. The server verifies the HMAC window and that the session is open, then creates a **claim** (90s TTL) and remembers it in an HttpOnly cookie. This lets the scan survive the Google login if the student isn't signed in yet.
-2. If needed, the student signs in with Google. The claim is then bound to their `user_id`.
-3. The browser asks for GPS (`lat, lng, accuracy`) and calls `POST /checkin/complete {claim_id, lat, lng, accuracy}`. This runs as **one transaction**:
+1. **Scan:** `GET /c/:id.:window.:token`. The server checks the token and that the session is open, then sets a signed, HttpOnly `scan` cookie (`class_session_id`, `scanned_at`) that lasts **90 s**. This is how the scan survives the Google login.
+2. **Login if needed.** The original URL is kept through the redirect.
+3. **GPS:** the browser asks for location, then `POST /api/checkin/complete {lat, lng, accuracy}` (zod-validated). **One transaction:**
    ```sql
-   DELETE FROM checkin_claims WHERE id = $1 AND user_id = $2 AND expires_at > now() RETURNING class_session_id;
-   -- check: enrolled, session still open, ST_DWithin(session.location, point, radius_m + accuracy budget)
-   INSERT INTO attendance (...) ON CONFLICT DO NOTHING;   -- stores distance_m, never lat/lng
-   INSERT INTO checkin_attempts (...);
+   -- inside BEGIN … COMMIT, with SET LOCAL app.user_id
+   -- 1. read the scan cookie (must be < 90 s old) → class_session_id
+   -- 2. check: enrolled, session still open, ST_DWithin(session.location, point, radius_m + accuracy budget)
+   INSERT INTO api.attendance (...) VALUES (...) ON CONFLICT DO NOTHING;   -- distance_m only, never lat/lng
+   INSERT INTO api.checkin_attempts (...) VALUES (...);                    -- success or the failure reason
    ```
-4. A trigger fires `NOTIFY roster`, and the WebSocket hub pushes the update to the instructor's screen.
+4. A trigger on `attendance` runs `pg_notify('roster', …)`, and the WebSocket hub pushes it to the instructor's screen.
 
 ### 5.3 Evidence
-| Signal | Type |
+| Signal | Effect |
 |---|---|
-| Valid HMAC window | Hard gate |
-| Signed in, with a verified Google ID token, and has the student role (ADR 0007) | Hard gate |
-| Enrolled in the section, session open | Hard gate |
-| Distance ≤ radius (allowing for GPS accuracy) | Hard gate |
-| GPS accuracy suspiciously perfect | Soft → `risk_flags` |
-| Request not from `rooms.campus_cidrs` (campus Wi-Fi) | Soft → `risk_flags` |
+| Valid QR window, signed in as a student, enrolled, session open | Hard gate (reject if not) |
+| Distance ≤ radius (with GPS accuracy budget) | Hard gate |
+| GPS accuracy suspiciously perfect, or not on campus Wi-Fi | Soft: adds a `risk_flags` entry, never rejects |
 
-Flagged check-ins show up in the roster for the instructor. Flags never silently reject a student. When a hard gate fails (bad GPS, phone can't get a location), the instructor can use **manual check-in**.
-
-### 5.4 Threat model (Yayikast keeps `docs/THREAT_MODEL.md`)
-Covers at least: proxy attendance, a forwarded QR photo, GPS spoofing, replay, role escalation, IDOR on the admin APIs, token brute force, DoS of the check-in burst, leaked backups, and insider (admin) abuse.
+If a student's phone can't get a location, the instructor marks them present by hand (`method = 'manual'`).
 
 ---
 
-## 6. Database security
+## 6. Networking
 
-- **Schemas:** `api` (app tables), `private` (secrets and helper functions), `audit` (append-only).
-- **Roles (no superuser at runtime):**
-  | Role | Can |
-  |---|---|
-  | `migrator` | Run DDL. Used only by dbmate/CI |
-  | `app_rw` | DML on `api`, EXECUTE on approved functions. Subject to RLS |
-  | `app_ro` | SELECT for reports |
-  | `auditor` | SELECT on `audit` only |
-- **RLS on every `api` table.** For each request, the API runs `SET LOCAL app.user_id = …` inside the transaction, and policies read it through `private.current_user_id()`.
-- **SECURITY DEFINER functions** use `SET search_path = pg_catalog, private` and are owned by a non-login role.
-- **Audit:** triggers write `audit.events` for attendance, enrollments and user_roles.
-- **Secrets** live in `.env` (gitignored). `.env.example` is committed.
-- **Privacy by design (ADR 0006):** no raw GPS and no IP addresses in the database. Only `distance_m`, `gps_accuracy_m` and `on_campus`. Caddy access logs (which contain IPs) are kept 7 days.
-- **Backups:** a nightly `pg_dump`, plus a restore that is tested once per milestone.
-
-**pgTAP tests are required.** Each predecessor bug in §2 gets a test that fails if the bug comes back.
+- **Docker networks:** only Caddy publishes a port. The API and DB are reachable only inside Compose.
+- **Caddy:** local HTTPS, HSTS, CSP (no inline scripts), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`. Routes `/api/*` and `/ws` to the API and everything else to the web app. Sets `X-Request-Id`.
+- **Real client IP:** Caddy forwards `X-Forwarded-For`; the API trusts it only from Caddy. Used for the campus Wi-Fi check (`on_campus`) and rate limits.
+- **Cloudflare Tunnel:** gives the laptop a public HTTPS address, so phones get GPS and secure cookies.
+- **WebSocket:** authenticates on connect, only instructors of that section can subscribe to its roster. Heartbeat every 20 s; the client reconnects with backoff and re-fetches the roster.
+- **Rate limits:** per user on `/api/checkin/*` (e.g. 5/min) in the API; generous per IP (campus Wi-Fi shares one IP).
+- **Load test (k6):** 300 check-ins in 30 s → p95 < 500 ms, 0 errors.
+- **Observability:** `/healthz`, `/readyz`, JSON logs with a request ID from Caddy through the API.
 
 ---
 
-## 7. Networking
+## 7. Team
 
-- **Edge (Caddy):** TLS 1.2+, HSTS, `Content-Security-Policy` (no inline scripts), `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy` (geolocation only on the check-in page). CORS allows only our own origin.
-- **Rate limits:** at the edge, per IP and generous (a whole class shares one campus Wi-Fi IP). In the app, per user on `/checkin/*` (e.g. 5 per minute). Counters live in memory and are never stored.
-- **Real-time:** the WebSocket authenticates on connect and subscribes only to sessions the user may see. Heartbeat every 20s. The client reconnects with backoff and re-fetches the full roster after reconnecting.
-- **Projector resilience:** the QR keeps showing the last valid window, with a "connection degraded" badge instead of an error screen.
-- **Time:** the server is authoritative. The API returns `server_time` so clients can correct clock drift.
-- **Real client IP:** Caddy forwards `X-Forwarded-For`, and the API trusts it only from Caddy (needed for the campus Wi-Fi check).
-- **Capacity target:** 300 students checking in within 30s → p95 < 500ms, 0 errors (k6 script in `load/`).
-- **Observability:** a request ID from edge → API → DB, `/healthz` and `/readyz`, structured JSON logs.
-
----
-
-## 8. Team split (3 people)
-
-| | **boeingxd: Network, Platform & UI** | **postscrippt: Data, Admin & Professor features** | **Yayikast: Security & Student check-in** |
+| | boeingxd: Network + UI | postscrippt: Database | Yayikast: Security + check-in |
 |---|---|---|---|
-| Backend | Docker Compose, Caddy (TLS, headers, CORS, rate limits), CI, WebSocket roster hub, real-client-IP handling, Cloudflare Tunnel, VPS deploy, backups, k6 load test, logs and health checks | Schema, migrations, seeds, ERD. Admin: courses, sections, rooms, instructor registration, CSV enrollment import. Professor: open/close a class session, session history, manual check-in. Report views + CSV export | Google sign-in + login policy (ADR 0007), `user_roles` + RLS + DB roles, audit log, rotating HMAC QR + validation, the check-in transaction + attempt log, error codes, threat model, pgTAP security tests |
-| UI | **All screens**: layout, shared components in `web/src/ui/`, design. Built against `docs/API.md` with fake data until each endpoint is ready | Provides the endpoints for the admin and professor screens | Provides the endpoints for the login, scanner and student screens |
-| Reviews | Everyone's performance (EXPLAIN plans, load) and API changes that affect the UI | Yayikast's SQL policies | postscrippt's schema (security lens) and boeingxd's edge config |
-| Demo | Infrastructure, live roster, load test, all screens | Admin + professor flow, reports | Login, check-in, blocked attack attempts |
+| Owns | Docker, Caddy, Tunnel, WebSocket, rate limits, CI, load test, **all screens** | Migrations, tables, seeds, ERD, open/close check-in, views, audit trigger, indexes | Google login, RLS + DB roles, QR tokens, check-in transaction, threat model, security tests |
+| Reviews | API changes that affect screens | Yayikast's policies | All schema and permission changes |
 
-- Networking and UI are owned by boeingxd alone. Networking work is heavy in M0 and M4 and lighter in the middle, which is when the UI gets built.
-- Yayikast has the hardest part. If it falls behind, postscrippt takes the excuse workflow and the student history page.
-- Any API change goes through `docs/API.md` first, so the screens don't break silently.
-
-**Agree on these before building on top of them:**
-- postscrippt ↔ Yayikast: the table/column list and a role × table × operation matrix (`docs/PERMISSIONS.md`).
-- Yayikast ↔ boeingxd: the check-in API contract (`docs/API.md`) and the rate-limit numbers.
-- postscrippt ↔ boeingxd: the NOTIFY payload format and the DB connection pool settings.
+Agree before building on top of them: `docs/API.md` (task A1, everyone, days 1–2) and the NOTIFY payload (postscrippt + boeingxd).
 
 ---
 
-## 9. Learning path and milestones
+## 8. Schedule
 
-Every step has the same shape: **learn** the idea (short explanation) → **build** it → **check** it works. Steps are small on purpose. Owners are in brackets. Screens for every step are built by boeingxd.
+Each task is a GitHub issue titled `[W1] P2 …` (week, then owner letter: **A** = all, **B** = boeingxd, **P** = postscrippt, **Y** = Yayikast). Every issue says what to build, the idea in plain words, the steps, and exactly how to check it works.
 
-**Each step is tracked as a GitHub issue** (assigned to its owner, grouped by milestone). Issues exist for M0 and M1; later milestones get issues when M1 is nearly done.
-
-### M0: Foundations (weeks 1–2)
-| Step | Build | You learn |
+### Week 1 (12–18 Oct): foundations
+| Task | Build | Depends on |
 |---|---|---|
-| 0.1 | Install the tools: Git, Node 22, Docker Desktop, dbmate, VS Code. Clone the repo | Tooling, Git branches and PRs |
-| 0.2 | Repo skeleton: folders, `.gitignore`, `.env.example`, CODEOWNERS, PR template | Project structure, secrets hygiene |
-| 0.3 | `docker-compose.yml` with only Postgres + PostGIS; connect with a DB client [boeingxd] | Containers, ports, environment variables |
-| 0.4 | First migration: extensions, schemas, enums, DB roles [postscrippt + Yayikast] | What a migration is, `up`/`down` |
-| 0.5 | Academic tables + seed data + ERD (`docs/ERD.md`) [postscrippt] | Keys, foreign keys, constraints, normalisation |
-| 0.6 | Fastify "hello" + `/healthz` that queries the DB [boeingxd] | HTTP servers, connection pools |
-| 0.7 | Caddy in front with local HTTPS and security headers [boeingxd] | Reverse proxies, TLS, headers |
-| 0.8 | CI: GitHub Actions runs migrations, pgTAP and API tests [boeingxd] | Automated checks |
-| 0.9 | `THREAT_MODEL.md` v1 + `PERMISSIONS.md` [Yayikast] | Thinking like an attacker, least privilege |
-| 0.10 | API contract v1 (`docs/API.md`) for every M1 endpoint [Yayikast + postscrippt + boeingxd] | REST, request/response shapes, error codes |
-| 0.11 | Web app skeleton, shared components, screen inventory [boeingxd] | Vite, React, routing, CSS tokens |
+| A1 | `docs/API.md`: every endpoint, request/response, error codes | — |
+| B1 | API skeleton: Fastify, `/healthz`, `/readyz` (**done**) | — |
+| B2 | Caddy: local HTTPS + security headers; API no longer published directly | B1 |
+| B3 | Web app skeleton + login page (React + Vite behind Caddy) | B2 |
+| B4 | Cloudflare Tunnel: open the app on a phone | B2 |
+| P1 | First migration: extensions, schemas, enums, DB roles | — |
+| P2 | All tables + seed data + ERD | P1 |
+| Y1 | Google sign-in + login policy (ADR 0007) | P2, A1 |
+| Y2 | RLS policies + grants + tests ("student can't make self admin") | P2 |
 
-### M1: Walking skeleton (weeks 3–4)
-| Step | Build | You learn |
+### Week 2 (19–25 Oct): the full demo — **due Fri 23 Oct**
+| Task | Build | Depends on |
 |---|---|---|
-| 1.1 | Google sign-in, `users` + `students` + `auth_sessions`, login policy (ADR 0007) [Yayikast] | OAuth/OIDC, cookies, sessions |
-| 1.2 | `user_roles` + first RLS policies + pgTAP test for the "student makes self admin" bug [Yayikast] | RLS, testing security |
-| 1.3 | Instructor opens/closes a class session; projector shows the rotating HMAC QR [Yayikast + postscrippt] | HMAC, stateless tokens |
-| 1.4 | Student check-in: claim → login → GPS → one transaction [Yayikast] | Transactions, race conditions, PostGIS distance |
-| 1.5 | Live roster: NOTIFY → WebSocket hub → browser [boeingxd] | LISTEN/NOTIFY, WebSockets |
-| 1.6 | Cloudflare Tunnel so you can test on real phones [boeingxd] | Why phones need real HTTPS |
-| 1.7 | Screens for the walking skeleton (login, open session, projector QR, student check-in, live roster) [boeingxd] | Data fetching, loading/error states, geolocation API |
+| P3 | Instructor opens/closes a check-in window | P2, Y2 |
+| P4 | Views: roster (present/absent) + attendance rate; manual mark | P2 |
+| Y3 | Rotating QR token + projector endpoint | P3 |
+| Y4 | Student check-in: scan → login → GPS → one transaction | Y1, Y3 |
+| B5 | Live roster: NOTIFY → WebSocket → browser | P3, B2 |
+| B6 | Screens: instructor, projector, student check-in, roster | B3, A1 |
 
-**M1 done when:** an instructor opens a session → the projector shows the QR → a student signs in on a phone → the check-in is recorded → the roster updates live.
-
-### M2: Hardening (weeks 5–6)
-- zod validation on every route, error codes only, CORS allowlist [Yayikast + boeingxd]
-- Rate limits in Caddy and the app [boeingxd]
-- Audit triggers → `audit.events` [Yayikast]
-- Risk flags (GPS accuracy, campus network) shown in the roster [Yayikast]
-- pgTAP tests covering every §2 bug [Yayikast]
-- WebSocket reconnect + re-sync; projector "degraded" badge [boeingxd]
-
-### M3: Academic features (weeks 7–8)
-- CSV import for sections and enrollments [postscrippt]
-- Manual check-in by the instructor [postscrippt + Yayikast]
-- Excuse workflow (request → approve/reject) [postscrippt]
-- Report views (roster with absents, attendance rate per section) + CSV export [postscrippt]
-
-### M4: Deploy and polish (weeks 9–10)
-- Deploy the Compose stack to a VPS with a real domain [boeingxd]
-- Nightly `pg_dump` + a tested restore [postscrippt + boeingxd]
-- k6 load test against the capacity target [boeingxd]
-- Demo script [all]
-
-### Stretch goals (only if the core is done)
-Table partitioning for `attendance`, materialized views, pgaudit, point-in-time recovery, Prometheus/Grafana dashboards, a weekly class schedule (`section_meetings`).
+### Week 3 (26 Oct – 1 Nov): buffer + graded extras
+| Task | Build | Depends on |
+|---|---|---|
+| B7 | Rate limits + real client IP + `on_campus` flag | B2, Y4 |
+| B8 | CI (GitHub Actions) + k6 load test | B1, P1 |
+| P5 | Audit trigger → `audit.events` | P2 |
+| P6 | Indexes + `EXPLAIN ANALYZE` write-up | P4 |
+| Y5 | Threat model write-up (`docs/THREAT_MODEL.md`) | Y4 |
+| Y6 | A test for every old bug in §2 | Y2, Y4 |
+| A2 | Demo rehearsal + slides | everything |
 
 ---
 
-## 10. Repository layout
-```
-.
-├── PROJECT_PLAN.md
-├── README.md
-├── CLAUDE.md
-├── docker-compose.yml
-├── .env.example
-├── .github/  (CODEOWNERS, pull_request_template.md, workflows/ci.yml)
-├── db/
-│   ├── migrations/   ← dbmate SQL files (A)
-│   ├── seeds/        ← fake terms/courses/students (A)
-│   └── tests/        ← pgTAP (B)
-├── api/              ← Fastify + TS (src/auth, checkin, admin, reports, realtime)
-├── web/              ← React + Vite
-├── infra/caddy/Caddyfile
-├── load/             ← k6 scripts
-└── docs/
-    ├── decisions/    ← ADRs
-    ├── THREAT_MODEL.md, PERMISSIONS.md, API.md, NETWORK.md, ERD.md
-```
-
----
-
-## 11. Working agreement
-- **Branches:** `<github-username>/<short-topic>` (e.g. `postscrippt/terms-schema`). Never commit directly to `main`.
-- **PRs:** small and single-purpose. The description says *what, why, how tested*. Schema or permission changes need **Yayikast's** review.
-- **Definition of done:** tests pass in CI, migrations are reversible, docs are updated, and there are no secrets in the diff.
-- **Security bugs:** write a regression test **before** the fix.
-- **Weekly:** a 30-minute sync covering the demo of what merged, blockers, and the next step.
+## 9. Working agreement
+- **Branches:** `<github-username>/<short-topic>`. Never commit to `main` directly.
+- **PRs:** small; the description says what, why, and how you tested it, plus `Closes #<issue>`. Schema or permission changes need Yayikast's review.
+- **Done means:** tests pass, migrations roll back cleanly (`dbmate rollback`), docs updated, no secrets in the diff.
+- **Security bugs:** write the failing test first, then the fix.
+- **Daily:** a 5-minute message in the group chat: what I finished, what's next, what's blocking me.
