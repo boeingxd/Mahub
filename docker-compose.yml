@@ -90,6 +90,25 @@ services:
     networks:
       - frontend
 
+  tunnel:
+    # Cloudflare Tunnel (task B4): connects OUT to Cloudflare and gets a public
+    # https://something.trycloudflare.com address that forwards to Caddy's plain
+    # HTTP door (:8080, never published). Phones use that address.
+    # Only started on request:  docker compose --profile tunnel up -d tunnel
+    # Read the address with:    docker compose logs tunnel | grep trycloudflare
+    # It changes every time the tunnel restarts (docs/NETWORK.md, "Phone testing").
+    image: cloudflare/cloudflared:2025.11.1
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate --url http://caddy:8080
+    depends_on:
+      - caddy
+    networks:
+      frontend:
+        # A fixed address, so Caddy can trust CF-Connecting-IP from this
+        # container only (trusted_proxies in the Caddyfile).
+        ipv4_address: 172.28.1.10
+
 # Two separate networks, so each service can reach only what it needs:
 #   frontend: caddy <-> api      backend: api <-> db
 # Caddy can't reach the database at all.
