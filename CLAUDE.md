@@ -52,6 +52,14 @@ Each one comes from a bug in the predecessor system (plan §2) and needs a pgTAP
 - Roles: `migrator` (DDL only), `app_rw` (subject to RLS), `app_ro`, `auditor`. There is no superuser at runtime.
 - Use `uuid` PKs (or natural composite PKs), `timestamptz`, `NOT NULL` by default, and enums for statuses. Every FK has an explicit `ON DELETE` (prefer `RESTRICT` plus `archived_at`). Index join FKs, and add partial indexes on hot paths.
 
+## Finding what to work on
+
+Tasks are GitHub issues in `boeingxd/Mahub`, grouped by milestone (M0, M1, …) and assigned to their owner. When someone asks "what should I do?" or "work on my next task":
+1. Find out who they are: `gh api user -q .login`
+2. List their open issues: `gh issue list --assignee @me --state open`. Suggest the lowest-numbered step whose "Depends on" issues are closed.
+3. Read the issue (`gh issue view <n>`) and follow its Goal / You'll learn / Build / Done when sections, teaching as you go.
+4. Branch as `<username>/<short-topic>`, and open the PR with `Closes #<n>` in the description.
+
 ## Team (plan §8)
 
 - **boeingxd:** network and platform (Docker, Caddy, CI, WebSocket hub, deploy, load tests) **and all UI screens**.
@@ -60,5 +68,5 @@ Each one comes from a bug in the predecessor system (plan §2) and needs a pgTAP
 
 ## Working agreement
 
-- Branches are named `<initial>/<short-topic>`. Never commit directly to `main`. PRs are small, and the description covers what changed, why, and how it was tested. Schema or permission changes need Yayikast's (Security) review.
+- Branches are named `<github-username>/<short-topic>`. Never commit directly to `main`. PRs are small, and the description covers what changed, why, and how it was tested. Schema or permission changes need Yayikast's (Security) review.
 - Agree on the cross-area contracts in plan §8 (`docs/PERMISSIONS.md`, `docs/API.md`, the NOTIFY payload format, pool settings) before building on top of them.

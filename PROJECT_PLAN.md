@@ -245,6 +245,8 @@ Covers at least: proxy attendance, a forwarded QR photo, GPS spoofing, replay, r
 
 Every step has the same shape: **learn** the idea (short explanation) → **build** it → **check** it works. Steps are small on purpose. Owners are in brackets. Screens for every step are built by boeingxd.
 
+**Each step is tracked as a GitHub issue** (assigned to its owner, grouped by milestone). Issues exist for M0 and M1; later milestones get issues when M1 is nearly done.
+
 ### M0: Foundations (weeks 1–2)
 | Step | Build | You learn |
 |---|---|---|
@@ -257,6 +259,8 @@ Every step has the same shape: **learn** the idea (short explanation) → **buil
 | 0.7 | Caddy in front with local HTTPS and security headers [boeingxd] | Reverse proxies, TLS, headers |
 | 0.8 | CI: GitHub Actions runs migrations, pgTAP and API tests [boeingxd] | Automated checks |
 | 0.9 | `THREAT_MODEL.md` v1 + `PERMISSIONS.md` [Yayikast] | Thinking like an attacker, least privilege |
+| 0.10 | API contract v1 (`docs/API.md`) for every M1 endpoint [Yayikast + postscrippt + boeingxd] | REST, request/response shapes, error codes |
+| 0.11 | Web app skeleton, shared components, screen inventory [boeingxd] | Vite, React, routing, CSS tokens |
 
 ### M1: Walking skeleton (weeks 3–4)
 | Step | Build | You learn |
@@ -267,6 +271,7 @@ Every step has the same shape: **learn** the idea (short explanation) → **buil
 | 1.4 | Student check-in: claim → login → GPS → one transaction [Yayikast] | Transactions, race conditions, PostGIS distance |
 | 1.5 | Live roster: NOTIFY → WebSocket hub → browser [boeingxd] | LISTEN/NOTIFY, WebSockets |
 | 1.6 | Cloudflare Tunnel so you can test on real phones [boeingxd] | Why phones need real HTTPS |
+| 1.7 | Screens for the walking skeleton (login, open session, projector QR, student check-in, live roster) [boeingxd] | Data fetching, loading/error states, geolocation API |
 
 **M1 done when:** an instructor opens a session → the projector shows the QR → a student signs in on a phone → the check-in is recorded → the roster updates live.
 
@@ -320,7 +325,7 @@ Table partitioning for `attendance`, materialized views, pgaudit, point-in-time 
 ---
 
 ## 11. Working agreement
-- **Branches:** `<initial>/<short-topic>` (e.g. `a/terms-schema`). Never commit directly to `main`.
+- **Branches:** `<github-username>/<short-topic>` (e.g. `postscrippt/terms-schema`). Never commit directly to `main`.
 - **PRs:** small and single-purpose. The description says *what, why, how tested*. Schema or permission changes need **Yayikast's** review.
 - **Definition of done:** tests pass in CI, migrations are reversible, docs are updated, and there are no secrets in the diff.
 - **Security bugs:** write a regression test **before** the fix.
