@@ -33,23 +33,23 @@ npm install              # first time only
 npm run dev              # reads settings from ../.env
 ```
 
-**In Docker**, the way it will run on the server:
+**In Docker, behind Caddy**, the way it runs for the demo:
 
 ```bash
-docker compose up -d --build api
+docker compose up -d --build
 docker compose ps        # api shows "healthy" once it can reach the DB
 docker compose logs api  # JSON logs, one line per event
 ```
 
-Don't run both at once: they share `API_PORT` (default 3000).
+Caddy is the only way in: `https://localhost/api/...`. The API itself isn't published. The first time, trust Caddy's local certificate on your Mac (see [docs/NETWORK.md](docs/NETWORK.md#trust-caddys-certificate-on-your-mac-once)); until then, add `-k` to curl.
 
 Check it:
 
 ```bash
-curl localhost:3000/healthz   # {"status":"ok"}: the process is up
-curl localhost:3000/readyz    # {"status":"ok"}: the database answers
+curl https://localhost/api/healthz   # {"status":"ok"}: the process is up
+curl https://localhost/api/readyz    # {"status":"ok"}: the database answers
 docker compose stop db
-curl localhost:3000/readyz    # 503 {"status":"unavailable"}
+curl https://localhost/api/readyz    # 503 {"status":"unavailable"}
 docker compose start db
 ```
 
