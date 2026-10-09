@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Read `PROJECT_PLAN.md` before writing anything.** It is the spec, and §8 is the 3-week schedule (2 weeks to the demo on Fri 23 Oct, then 1 buffer week; ADR 0008). `docs/BASICS.md` explains every concept in plain English, so point teammates there. Decisions are in `docs/decisions/` (ADRs). If code and the plan disagree, ask before changing either. Keep the commands below up to date as more pieces land.
 
-So far: Postgres, the API skeleton (`/healthz`, `/readyz`), Caddy, and the web app skeleton (React pages with fake data) in Docker Compose. Caddy is the only way in: `https://localhost/` (web) and `https://localhost/api/...` (API). `docs/NETWORK.md` has the hops, ports and trust rules; `docs/SCREENS.md` lists the screens. No migrations yet.
+So far: Postgres, the API skeleton (`/healthz`, `/readyz`), Caddy, and the web app (the instructor and student flows with sample data from `web/src/fakeData.ts`; `/dev` lists every screen until sign-in works) in Docker Compose. Caddy is the only way in: `https://localhost/` (web) and `https://localhost/api/...` (API). `docs/NETWORK.md` has the hops, ports and trust rules; `docs/SCREENS.md` lists the screens. No migrations yet.
 
 ## Commands
 
@@ -15,6 +15,7 @@ So far: Postgres, the API skeleton (`/healthz`, `/readyz`), Caddy, and the web a
 - Full stack in Docker: `docker compose up -d --build`, then `curl -k https://localhost/api/readyz`. The API isn't published; `infra/caddy/Caddyfile` strips `/api` before forwarding.
 - Web (run in `web/`): `npm run dev` (http://127.0.0.1:5173, proxies `/api` to the stack), `npm run build`, `npm run lint` (oxlint). The Caddy image (`infra/caddy/Dockerfile`) builds `web/` into `/srv`, so rebuild it after web changes: `docker compose up -d --build caddy`.
 - CSP forbids inline scripts and inline `style` attributes: style with classes in `web/src/ui/ui.css` and tokens in `web/src/ui/tokens.css`.
+- The web look is "Wallet passes" (Apple-style, system font, light and dark). Read `web/CONCEPT.md` and `web/DESIGN.md` before building a screen: class colours identify a class and never mean status; reuse `Pass`, `List`, `Badge` and the other components in `web/src/ui/`.
 - `api/src/app.ts` builds the Fastify app without listening, so tests use `app.inject()` with a fake `db`. `api/src/server.ts` is the real entrypoint.
 
 Mahub is graded in two courses, **Database Systems** and **Computer Networks**, so keep the features that show those skills. Mahub is a secure university attendance system. The instructor opens a short check-in window and projects a QR that rotates every 10 seconds. Students scan it and sign in with Google, the server verifies the evidence and records attendance in one transaction, and a live roster updates over WebSocket. The priorities, in order, are anti-cheating, database design, database security and networking. UI comes last and should stay plain.
@@ -45,9 +46,9 @@ Each one comes from a bug in the predecessor system (plan §2) and needs a vites
 - **The client never writes attendance.** Check-in completion is one transaction: read the signed 90 s `scan` cookie, then the enrollment, open-session and geofence (`ST_DWithin`) checks, then `INSERT … ON CONFLICT DO NOTHING` into `attendance`, then a log row in `checkin_attempts`.
 - **QR tokens are stateless HMAC** (`HMAC-SHA256(QR_SECRET, class_session_id + ":" + floor(t/10))`, accepting windows now±1), so a QR rotation causes no DB write. `QR_SECRET` lives only in `.env`.
 - **Validate every request body with zod**, and add DB CHECK constraints for ranges (the predecessor's `lat: "x"` NaN bypass).
-- **Never store raw GPS or IP addresses** (ADR 0006). Store only `distance_m`, `gps_accuracy_m` and `on_campus`.
+- **Never store raw GPS or IP addresses** (ADR 0006). Store only `distance_m` and `gps_accuracy_m`.
 - **SECURITY DEFINER functions** use `SET search_path = pg_catalog, private` and are owned by a non-login role.
-- **Soft signals** (GPS accuracy, off campus network) only add `risk_flags`. They never reject a student.
+- **There are no risk flags or soft signals** (no "unusual GPS", no campus Wi-Fi check). The instructor marks exceptions by hand.
 - **No CORS `*` and no raw errors to clients.** Rate-limit at the edge (generous per IP, because of campus NAT) and in the app (per user on `/checkin/*`).
 
 ## Domain rules that are easy to get wrong

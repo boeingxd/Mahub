@@ -106,11 +106,11 @@ audit.events  (written by a trigger)
 | `students` | user_id PK → users, student_no unique CHECK `^[0-9]{10}$` | From the email prefix (ADR 0007) |
 | `courses` | id, code unique (`ITS332`), name | |
 | `sections` | id, course_id, term text (`2026-1`), section_no, instructor_id → users | unique(course_id, term, section_no) |
-| `rooms` | id, name, location `geography(Point)`, radius_m CHECK 10–500, campus_cidrs `cidr[]` | |
+| `rooms` | id, name, location `geography(Point)`, radius_m CHECK 10–500 | |
 | `enrollments` | section_id, student_id | PK(section_id, student_id) |
 | `class_sessions` | id, section_id, room_id, location, radius_m, opened_by, opened_at, closed_at | Geofence copied from the room on open. **Partial unique index: one open session per section** |
-| `attendance` | class_session_id, student_id, status (`present`/`excused`), method (`qr`/`manual`), recorded_at, recorded_by, distance_m, gps_accuracy_m, on_campus, risk_flags text[] | PK(class_session_id, student_id). **Absent = enrolled with no row**, derived in a view |
-| `checkin_attempts` | id, class_session_id, user_id, at, outcome (`attempt_outcome` enum), distance_m, gps_accuracy_m, on_campus | Every attempt, including failures |
+| `attendance` | class_session_id, student_id, status (`present`/`excused`), method (`qr`/`manual`), recorded_at, recorded_by, distance_m, gps_accuracy_m | PK(class_session_id, student_id). **Absent = enrolled with no row**, derived in a view |
+| `checkin_attempts` | id, class_session_id, user_id, at, outcome (`attempt_outcome` enum), distance_m, gps_accuracy_m | Every attempt, including failures |
 | `audit.events` | id, at, actor, table_name, op, row_pk, before jsonb, after jsonb | Trigger-written. Nobody can UPDATE or DELETE |
 
 ### 4.2 Design rules
@@ -124,7 +124,7 @@ audit.events  (written by a trigger)
 - **Roles:** `migrator` (runs migrations), `app_rw` (the API; subject to RLS), `app_ro` (reports, read-only), `auditor` (reads `audit` only). No superuser at runtime.
 - **RLS on every `api` table.** Per request, the API runs `SET LOCAL app.user_id = '<uuid>'` inside a transaction; policies read it via `private.current_user_id()`.
 - **SECURITY DEFINER** helpers (e.g. `private.has_role()`) use `SET search_path = pg_catalog, private`.
-- **Privacy (ADR 0006):** store `distance_m`, `gps_accuracy_m`, `on_campus` only. Never raw lat/lng or IP.
+- **Privacy (ADR 0006):** store `distance_m` and `gps_accuracy_m` only. Never raw lat/lng or IP.
 
 ---
 
@@ -156,7 +156,7 @@ QR URL = https://<host>/c/<class_session_id>.<window>.<token>
 |---|---|
 | Valid QR window, signed in as a student, enrolled, session open | Hard gate (reject if not) |
 | Distance ≤ radius (with GPS accuracy budget) | Hard gate |
-| GPS accuracy suspiciously perfect, or not on campus Wi-Fi | Soft: adds a `risk_flags` entry, never rejects |
+| _No soft signals._ There are no risk flags (no "unusual GPS", no campus Wi-Fi check): the instructor marks exceptions by hand | |
 
 If a student's phone can't get a location, the instructor marks them present by hand (`method = 'manual'`).
 
@@ -166,10 +166,10 @@ If a student's phone can't get a location, the instructor marks them present by 
 
 - **Docker networks:** only Caddy publishes a port. The API and DB are reachable only inside Compose.
 - **Caddy:** local HTTPS, HSTS, CSP (no inline scripts), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`. Routes `/api/*` and `/ws` to the API and everything else to the web app. Sets `X-Request-Id`.
-- **Real client IP:** Caddy forwards `X-Forwarded-For`; the API trusts it only from Caddy. Used for the campus Wi-Fi check (`on_campus`) and rate limits.
+- **Real client IP:** Caddy forwards `X-Forwarded-For`; the API trusts it only from Caddy. Used for rate limits only, and never stored.
 - **Cloudflare Tunnel:** gives the laptop a public HTTPS address, so phones get GPS and secure cookies.
 - **WebSocket:** authenticates on connect, only instructors of that section can subscribe to its roster. Heartbeat every 20 s; the client reconnects with backoff and re-fetches the roster.
-- **Rate limits:** per user on `/api/checkin/*` (e.g. 5/min) in the API; generous per IP (campus Wi-Fi shares one IP).
+- **Rate limits:** per user on `/api/checkin/*` (e.g. 5/min) in the API; generous per IP (a whole class shares one IP).
 - **Load test (k6):** 300 check-ins in 30 s → p95 < 500 ms, 0 errors.
 - **Observability:** `/healthz`, `/readyz`, JSON logs with a request ID from Caddy through the API.
 
@@ -216,7 +216,7 @@ Each task is a GitHub issue titled `[W1] P2 …` (week, then owner letter: **A**
 ### Week 3 (26 Oct – 1 Nov): buffer + graded extras
 | Task | Build | Depends on |
 |---|---|---|
-| B7 | Rate limits + real client IP + `on_campus` flag | B2, Y4 |
+| B7 | Rate limits + real client IP | B2, Y4 |
 | B8 | CI (GitHub Actions) + k6 load test | B1, P1 |
 | P5 | Audit trigger → `audit.events` | P2 |
 | P6 | Indexes + `EXPLAIN ANALYZE` write-up | P4 |

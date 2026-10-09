@@ -124,7 +124,7 @@ POST /api/checkin/complete   body {"lat": 14.07, "lng": 100.61, "accuracy": 12}
 - A **port** is a numbered door on a computer. Postgres listens on 5432, our API on 3000, HTTPS on 443.
 - **HTTPS** encrypts traffic. Phones **refuse to give GPS** to a page that isn't HTTPS, and secure cookies need it too.
 - **Caddy** is a **reverse proxy**: the single front door. It does HTTPS, adds **security headers** (rules telling the browser what's allowed), and forwards `/api` to the API and everything else to the web app. Only Caddy is reachable from outside.
-- **X-Forwarded-For:** because Caddy forwards requests, the API would only see Caddy's address. Caddy adds this header with the real client IP. We use it for rate limits and the campus Wi-Fi check, then throw it away (never stored).
+- **X-Forwarded-For:** because Caddy forwards requests, the API would only see Caddy's address. Caddy adds this header with the real client IP. We use it for rate limits, then throw it away (never stored).
 - **Cloudflare Tunnel:** a program on the laptop that connects out to Cloudflare and gets a public `https://…trycloudflare.com` address. Phones on mobile data can reach the laptop with real HTTPS.
 - **WebSocket:** a normal request is ask → answer → done. A WebSocket stays **open**, so the server can push "new check-in!" to the instructor's screen the moment it happens.
 - **Rate limit:** "at most 5 check-in requests per minute per user", which stops scripts hammering the server.
