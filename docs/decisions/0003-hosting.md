@@ -1,6 +1,6 @@
 # 0003. Hosting: Docker Compose + Caddy locally, VPS for the demo
 
-- Status: accepted
+- Status: accepted, amended by ADR 0008 (no VPS: the demo runs on a laptop behind Cloudflare Tunnel)
 - Date: 2026-10-09
 
 ## Context

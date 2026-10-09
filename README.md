@@ -2,7 +2,7 @@
 
 A secure attendance system for university classes. The instructor projects a QR code that rotates every 10 seconds, students check in with their university Google account and their phone's location, and the instructor watches a live roster.
 
-See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the full plan and [docs/decisions/](docs/decisions/) for the decisions behind it.
+New to backend work? Start with [docs/BASICS.md](docs/BASICS.md). See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the full plan and [docs/decisions/](docs/decisions/) for the decisions behind it.
 
 ## Run it locally
 
