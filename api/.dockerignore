@@ -1,0 +1,5 @@
+# Keep the build context small and never copy local secrets or builds into the image.
+node_modules
+dist
+coverage
+.env

@@ -4,7 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-The repo has no code yet, only docs. **Read `PROJECT_PLAN.md` before writing anything.** It is the spec, and §9 is the step-by-step learning path the team follows. Decisions are in `docs/decisions/` (ADRs). If code and the plan disagree, ask before changing either. Update this file once real build/test commands exist.
+**Read `PROJECT_PLAN.md` before writing anything.** It is the spec, and §9 is the step-by-step learning path the team follows. Decisions are in `docs/decisions/` (ADRs). If code and the plan disagree, ask before changing either. Keep the commands below up to date as more pieces land.
+
+So far: Postgres in Docker Compose, and the API skeleton in `api/` (`/healthz`, `/readyz`). No migrations yet.
+
+## Commands
+
+- Database: `docker compose up -d db`, `dbmate create`, `dbmate up`. Connect with `docker compose exec db psql -U postgres -d mahub`.
+- API (run in `api/`): `npm run dev` (reads `../.env`), `npm test` (vitest), `npm run lint` (`tsc --noEmit`), `npm run build`.
+- API in Docker: `docker compose up -d --build api`, then `curl localhost:3000/readyz`.
+- `api/src/app.ts` builds the Fastify app without listening, so tests use `app.inject()` with a fake `db`. `api/src/server.ts` is the real entrypoint.
 
 Mahub is a secure university attendance system. The instructor opens a short check-in window and projects a QR that rotates every 10 seconds. Students scan it and sign in with Google, the server verifies the evidence and records attendance in one transaction, and a live roster updates over WebSocket. The priorities, in order, are anti-cheating, database design, database security and networking. UI comes last and should stay plain.
 
