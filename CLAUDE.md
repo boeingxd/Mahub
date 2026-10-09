@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**Read `PROJECT_PLAN.md` before writing anything.** It is the spec, and §8 is the 3-week schedule (2 weeks to the demo on Fri 23 Oct, then 1 buffer week; ADR 0008). `docs/BASICS.md` explains every concept in plain English, so point teammates there. Decisions are in `docs/decisions/` (ADRs). If code and the plan disagree, ask before changing either. Keep the commands below up to date as more pieces land.
+**Read `PROJECT_PLAN.md` before writing anything.** It is the spec, and §8 is the 3-week schedule (2 weeks to the demo on Fri 23 Oct, then 1 buffer week; ADR 0008). `docs/STATUS.md` is the one-page view of what is built, what is next and who needs what. `docs/BASICS.md` explains every concept in plain English, so point teammates there. Decisions are in `docs/decisions/` (ADRs). If code and the plan disagree, ask before changing either. Keep the commands below up to date as more pieces land.
 
 So far: Postgres, the API skeleton (`/healthz`, `/readyz`), Caddy, and the web app (the instructor and student flows with sample data from `web/src/fakeData.ts`; `/dev` lists every screen until sign-in works) in Docker Compose. Caddy is the only way in: `https://localhost/` (web) and `https://localhost/api/...` (API). `docs/NETWORK.md` has the hops, ports and trust rules; `docs/SCREENS.md` lists the screens. No migrations yet.
 
@@ -14,7 +14,7 @@ So far: Postgres, the API skeleton (`/healthz`, `/readyz`), Caddy, and the web a
 - API (run in `api/`): `npm run dev` (reads `../.env`), `npm test` (vitest), `npm run lint` (`tsc --noEmit`), `npm run build`.
 - Full stack in Docker: `docker compose up -d --build`, then `curl -k https://localhost/api/readyz`. The API isn't published; `infra/caddy/Caddyfile` strips `/api` before forwarding.
 - Web (run in `web/`): `npm run dev` (http://127.0.0.1:5173, proxies `/api` to the stack), `npm run build`, `npm run lint` (oxlint). The Caddy image (`infra/caddy/Dockerfile`) builds `web/` into `/srv`, so rebuild it after web changes: `docker compose up -d --build caddy`.
-- Phone testing: `docker compose --profile tunnel up -d tunnel`, then `docker compose logs tunnel | grep trycloudflare` for the public address (it changes on every restart; stop it with `docker compose stop tunnel`). See `docs/NETWORK.md`.
+- Phone testing: `docker compose --profile tunnel up -d tunnel`, then (after ~10 s) `docker compose logs tunnel | grep "trycloudflare.com " | tail -1` for the public address (it changes on every restart; stop it with `docker compose stop tunnel`). See `docs/NETWORK.md`.
 - CSP forbids inline scripts and inline `style` attributes: style with classes in `web/src/ui/ui.css` and tokens in `web/src/ui/tokens.css`.
 - The web look is "Wallet passes" (Apple-style, system font, light and dark). Read `web/CONCEPT.md` and `web/DESIGN.md` before building a screen: class colours identify a class and never mean status; reuse `Pass`, `List`, `Badge` and the other components in `web/src/ui/`.
 - `api/src/app.ts` builds the Fastify app without listening, so tests use `app.inject()` with a fake `db`. `api/src/server.ts` is the real entrypoint.

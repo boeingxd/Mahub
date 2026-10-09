@@ -90,7 +90,7 @@ A phone can't reach `https://localhost`, that is your laptop only. The tunnel gi
 
 ```bash
 docker compose --profile tunnel up -d tunnel      # start it
-docker compose logs tunnel | grep trycloudflare   # find the address
+docker compose logs tunnel | grep "trycloudflare.com " | tail -1   # find the address (wait ~10 s; empty = not ready yet)
 docker compose stop tunnel                         # stop it when you're done
 ```
 
