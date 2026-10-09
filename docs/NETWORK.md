@@ -15,7 +15,7 @@ How a request travels through Mahub, which ports are open, and who trusts whom. 
  │  · sets a fresh X-Request-Id and the real X-Forwarded-For   │
  │  · /api/*  → api:3000  (prefix /api removed)                │
  │  · /c/*, /ws → api:3000 (path unchanged)                    │
- │  · /       → placeholder (web app in task B3)               │
+ │  · /       → the React web app (static files in /srv)       │
  └───────────────────────┬─────────────────────────────────────┘
         frontend network │ 172.28.1.0/24, plain HTTP inside Docker
  ┌───────────────────────▼─────────────────────────────────────┐

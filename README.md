@@ -55,3 +55,21 @@ docker compose start db
 
 Other commands (run inside `api/`): `npm test` (vitest), `npm run lint` (TypeScript type-check), `npm run build` (compile to `dist/`).
 
+## Run the web app
+
+The React app lives in `web/`. In Docker, Caddy serves it at **https://localhost/**:
+
+```bash
+docker compose up -d --build caddy   # rebuild after changing web/
+```
+
+**While coding** (instant reload on save):
+
+```bash
+cd web
+npm install              # first time only
+npm run dev              # open http://127.0.0.1:5173 (not localhost, see web/vite.config.ts)
+```
+
+API calls from the dev server (`/api/...`) are forwarded to the Docker stack, so keep `docker compose up` running. Other commands in `web/`: `npm run build`, `npm run lint`. Screens are listed in [docs/SCREENS.md](docs/SCREENS.md).
+

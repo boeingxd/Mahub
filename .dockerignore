@@ -1,0 +1,6 @@
+# For images built from the repo root (Caddy + web app). Keep the build
+# context small and never copy secrets or local installs into an image.
+.git
+.env
+**/node_modules
+**/dist

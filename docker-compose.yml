@@ -1,6 +1,5 @@
 # Local development stack: Caddy (the front door), the API and the database.
-# The web app is added in task B3 (see PROJECT_PLAN.md §8).
-# Open https://localhost/api/healthz once it's running. docs/NETWORK.md has the diagram.
+# Caddy also serves the web app (web/). Open https://localhost/ once it's running. docs/NETWORK.md has the diagram.
 #
 #   docker compose up -d      start in the background
 #   docker compose ps         see what's running
@@ -65,9 +64,13 @@ services:
       retries: 5
 
   caddy:
-    # The edge server: HTTPS, security headers, and routing to the API.
-    # Its config is infra/caddy/Caddyfile.
-    image: caddy:2
+    # The edge server: HTTPS, security headers, routing to the API, and
+    # serving the web app. Its config is infra/caddy/Caddyfile.
+    # The image (infra/caddy/Dockerfile) builds the React app in web/ into it,
+    # so after changing web/ run: docker compose up -d --build caddy
+    build:
+      context: .
+      dockerfile: infra/caddy/Dockerfile
     restart: unless-stopped
     environment:
       HSTS_MAX_AGE: ${HSTS_MAX_AGE:-300}
@@ -76,6 +79,7 @@ services:
       - "127.0.0.1:80:80"
       - "127.0.0.1:443:443"
     volumes:
+      # Mounted too, so a Caddyfile edit only needs: docker compose restart caddy
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       # Caddy's certificate authority lives here. Keeping it in a volume means
       # you only have to trust it on your Mac once (see docs/NETWORK.md).

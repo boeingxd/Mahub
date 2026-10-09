@@ -1,0 +1,186 @@
+/* Base element styles and the shared components in src/ui/. Plain CSS, no framework. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+}
+
+h1 {
+  font-size: var(--font-size-xl);
+  margin: 0 0 var(--space-4);
+}
+
+h2 {
+  font-size: var(--font-size-lg);
+  margin: 0 0 var(--space-3);
+}
+
+p {
+  margin: 0 0 var(--space-3);
+}
+
+a {
+  color: var(--color-primary);
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+/* Layout: a header with navigation, then the page content */
+.layout-header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.layout-header-inner,
+.layout-main {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+.layout-header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.layout-brand {
+  font-weight: 700;
+  font-size: var(--font-size-lg);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.layout-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.layout-nav a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.layout-nav a.active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Card: a white box that groups related content */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-6);
+  margin-bottom: var(--space-4);
+}
+
+/* Button: also used for links that look like buttons */
+.button {
+  display: inline-block;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-6);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button-primary {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.button-secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Badge: a small coloured status label */
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-primary-text);
+}
+
+.badge-success { background: var(--color-success); }
+.badge-warning { background: var(--color-warning); }
+.badge-danger { background: var(--color-danger); }
+.badge-neutral { background: var(--color-neutral); }
+
+/* Table */
+.table-wrap {
+  overflow-x: auto; /* wide tables scroll sideways on phones */
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table th {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+/* Projector: full screen, big and readable from the back of the room */
+.projector {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  background: var(--color-surface);
+  text-align: center;
+  padding: var(--space-8);
+}
+
+.projector-qr {
+  width: min(70vh, 80vw);
+  aspect-ratio: 1;
+  border: 4px dashed var(--color-border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+}
+
+.projector-count {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+}
