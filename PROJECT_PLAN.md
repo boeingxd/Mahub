@@ -1,6 +1,6 @@
 # Mahub: Secure Attendance System (Project Plan)
 
-This file is the starting point for the repo: read it fully before writing code.
+> This file is the starting point for the repo: read it fully before writing code.
 > It is the successor to the *SIIT Smart Attendance* MVP (React + Supabase). We keep the features that worked and rebuild the system with the **database design**, **database security** and **networking** as the main strengths.
 
 ---
