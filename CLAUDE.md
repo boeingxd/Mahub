@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The repo has no code yet, only docs. **Read `PROJECT_PLAN.md` before writing anything.** It is the spec, and §9 is the step-by-step learning path the team follows. Decisions are in `docs/decisions/` (ADRs). If code and the plan disagree, ask before changing either. Update this file once real build/test commands exist.
 
-Mahub is a secure university attendance system. The instructor opens a short check-in window and projects a QR that rotates every 10 seconds. Students scan it and sign in with university Google accounts, the server verifies the evidence and records attendance in one transaction, and a live roster updates over WebSocket. The priorities, in order, are anti-cheating, database design, database security and networking. UI comes last and should stay plain.
+Mahub is a secure university attendance system. The instructor opens a short check-in window and projects a QR that rotates every 10 seconds. Students scan it and sign in with Google, the server verifies the evidence and records attendance in one transaction, and a live roster updates over WebSocket. The priorities, in order, are anti-cheating, database design, database security and networking. UI comes last and should stay plain.
 
 ## How to work with this team
 
@@ -42,7 +42,8 @@ Each one comes from a bug in the predecessor system (plan §2) and needs a pgTAP
 
 - `class_sessions` (attendance windows) and `auth_sessions` (logins) are different things. Never name a table plain `sessions`.
 - There is no `late` status and no auto-close. Attendance status is `present` or `excused`. **Absent means enrolled with no attendance row**, derived in a view. The instructor opens and closes windows by hand.
-- No device binding or passkeys (ADR 0004). Identity is the university Google account.
+- No device binding or passkeys (ADR 0004). Identity is the Google account.
+- **Login policy (ADR 0007):** a `^[0-9]{10}@g.siit.tu.ac.th` email signs in as a student (`students.student_no` = the prefix). Any other email must already be registered by an admin. Instructor and admin roles are never derived from an email, and there is no domain CHECK on `users.email`. After first login, match users by Google `sub`.
 - Reports come from SQL views, never from client-side aggregation.
 
 ## Database conventions
@@ -51,7 +52,13 @@ Each one comes from a bug in the predecessor system (plan §2) and needs a pgTAP
 - Roles: `migrator` (DDL only), `app_rw` (subject to RLS), `app_ro`, `auditor`. There is no superuser at runtime.
 - Use `uuid` PKs (or natural composite PKs), `timestamptz`, `NOT NULL` by default, and enums for statuses. Every FK has an explicit `ON DELETE` (prefer `RESTRICT` plus `archived_at`). Index join FKs, and add partial indexes on hot paths.
 
+## Team (plan §8)
+
+- **boeingxd:** network and platform (Docker, Caddy, CI, WebSocket hub, deploy, load tests) **and all UI screens**.
+- **postscrippt:** schema, migrations, seeds, admin and professor features, reports.
+- **Yayikast:** Google login, roles/RLS, audit, QR tokens, the check-in transaction, threat model, pgTAP.
+
 ## Working agreement
 
-- Branches are named `<initial>/<short-topic>`. Never commit directly to `main`. PRs are small, and the description covers what changed, why, and how it was tested. Schema or permission changes need the Security Engineer's (Role B's) review.
+- Branches are named `<initial>/<short-topic>`. Never commit directly to `main`. PRs are small, and the description covers what changed, why, and how it was tested. Schema or permission changes need Yayikast's (Security) review.
 - Agree on the cross-area contracts in plan §8 (`docs/PERMISSIONS.md`, `docs/API.md`, the NOTIFY payload format, pool settings) before building on top of them.

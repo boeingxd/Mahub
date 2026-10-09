@@ -1,0 +1,32 @@
+# Who gets asked to review a PR, based on which files it touches.
+# The LAST matching pattern wins, so general rules go first.
+# Owners: boeingxd = Network, Platform & UI · postscrippt = Data, Admin & Professor · Yayikast = Security & Check-in
+
+# Default: anything not listed below
+*                       @boeingxd
+
+# Platform, networking, CI (boeingxd)
+/docker-compose.yml     @boeingxd
+/.github/               @boeingxd
+/infra/                 @boeingxd
+/load/                  @boeingxd
+/api/src/realtime/      @boeingxd
+/web/                   @boeingxd
+
+# Database: schema changes always need a security review too
+/db/migrations/         @postscrippt @Yayikast
+/db/seeds/              @postscrippt
+/db/tests/              @Yayikast
+
+# API features
+/api/src/admin/         @postscrippt
+/api/src/reports/       @postscrippt
+/api/src/auth/          @Yayikast
+/api/src/checkin/       @Yayikast
+
+# Docs and contracts
+/docs/ERD.md            @postscrippt
+/docs/PERMISSIONS.md    @postscrippt @Yayikast
+/docs/THREAT_MODEL.md   @Yayikast
+/docs/API.md            @Yayikast @boeingxd
+/docs/NETWORK.md        @boeingxd

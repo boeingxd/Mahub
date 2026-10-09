@@ -3,7 +3,7 @@
 > Read this file before writing code. It is the spec for the whole project.
 > Mahub replaces the *SIIT Smart Attendance* MVP (React + Supabase). We keep what worked and rebuild with **database design**, **database security** and **networking** as the main strengths.
 > The team is new to databases and backend work, so the plan is a **step-by-step learning path** (see §9). Each step ends with something you can see working.
-> Decisions are recorded in `docs/decisions/` (ADRs 0001–0006).
+> Decisions are recorded in `docs/decisions/` (ADRs 0001–0007).
 
 ---
 
@@ -12,7 +12,7 @@
 A web app for taking attendance in university classes:
 
 1. During class, the instructor **opens a check-in window** and projects a **QR code that changes every 10 seconds**.
-2. Students scan it with their phones and sign in with their **university Google account**.
+2. Students scan it with their phones and sign in with **Google**: students with their SIIT account, instructors with any Google account an admin has registered (ADR 0007).
 3. The server checks the evidence (a valid QR, the right student, enrolled in the section, physically in the room) and records attendance **in one database transaction**.
 4. The instructor watches a **live roster** fill in, closes the window, and later exports reports.
 
@@ -38,7 +38,7 @@ A web app for taking attendance in university classes:
 - **A scan survives the login redirect.** Scanning creates a short-lived claim that lasts through the Google login round-trip.
 - **`UNIQUE(class_session_id, student_id)`** in the database stops duplicate check-ins.
 - **The live roster is driven by database change events**, not polling.
-- **The email domain is checked in two places:** Google's `hd` hint and a server-side check.
+- **Who may sign in is decided on the server** after verifying the Google ID token (ADR 0007).
 
 ### Fix (each bug gets a test that fails if it comes back)
 | Predecessor bug | Root cause | Rule for this project |
@@ -110,6 +110,7 @@ terms ─┬─< courses ─< sections ─┬─< enrollments >── users
                                                     └─< checkin_claims
 rooms ─< class_sessions (geofence copied when the session opens)
 users ─< user_roles
+users ─< students (student profile: student_no)
 users ─< auth_sessions
 attendance ─< excuse_requests
 audit.events (append-only, written by triggers)
@@ -119,7 +120,8 @@ audit.events (append-only, written by triggers)
 ### 4.2 Tables
 | Table | Key columns | Notes |
 |---|---|---|
-| `users` | id, email (citext, unique, domain CHECK), full_name, created_at | No `role` column |
+| `users` | id, email (citext, unique), google_sub (unique, null until first login), full_name, created_at | No `role` column. No domain CHECK, because instructors may use non-SIIT Google accounts (ADR 0007) |
+| `students` | user_id (PK, FK → users), student_no (unique, CHECK `^[0-9]{10}$`) | Student profile. `student_no` comes from the SIIT email prefix |
 | `user_roles` | user_id, role (`enum app_role`: student, instructor, admin), granted_by, granted_at | PK(user_id, role). Only admins can write. Audited |
 | `auth_sessions` | id, user_id, token_hash, created_at, expires_at | Login sessions. The cookie holds the token; the DB stores only its hash |
 | `terms` | id, code (`2026-1`), starts_on, ends_on | CHECK starts_on < ends_on |
@@ -172,7 +174,7 @@ QR URL = https://<host>/c/<class_session_id>.<window>.<token>
 | Signal | Type |
 |---|---|
 | Valid HMAC window | Hard gate |
-| Signed in with the university domain (verified `hd` claim + server check) | Hard gate |
+| Signed in, with a verified Google ID token, and has the student role (ADR 0007) | Hard gate |
 | Enrolled in the section, session open | Hard gate |
 | Distance ≤ radius (allowing for GPS accuracy) | Hard gate |
 | GPS accuracy suspiciously perfect | Soft → `risk_flags` |
@@ -180,7 +182,7 @@ QR URL = https://<host>/c/<class_session_id>.<window>.<token>
 
 Flagged check-ins show up in the roster for the instructor. Flags never silently reject a student. When a hard gate fails (bad GPS, phone can't get a location), the instructor can use **manual check-in**.
 
-### 5.4 Threat model (Role B keeps `docs/THREAT_MODEL.md`)
+### 5.4 Threat model (Yayikast keeps `docs/THREAT_MODEL.md`)
 Covers at least: proxy attendance, a forwarded QR photo, GPS spoofing, replay, role escalation, IDOR on the admin APIs, token brute force, DoS of the check-in burst, leaked backups, and insider (admin) abuse.
 
 ---
@@ -221,67 +223,71 @@ Covers at least: proxy attendance, a forwarded QR photo, GPS spoofing, replay, r
 
 ## 8. Team split (3 people)
 
-Everyone builds the plain screens for their own feature, using shared components in `web/src/ui/`.
-
-| | **A: Data Architect** | **B: Security Engineer** | **C: Network & Platform Engineer** |
+| | **boeingxd: Network, Platform & UI** | **postscrippt: Data, Admin & Professor features** | **Yayikast: Security & Student check-in** |
 |---|---|---|---|
-| Owns | `db/migrations`, `db/seeds`, views, reports, CSV import/export | Roles/grants/RLS, `audit`, Google sign-in, the check-in transaction, threat model | Docker, Caddy, CI, WebSocket hub, rate limits, logs, load test, deployment |
-| Reviews | B's SQL policies | A's schema (security lens) and C's edge config | Everyone's performance (EXPLAIN plans, load) |
+| Backend | Docker Compose, Caddy (TLS, headers, CORS, rate limits), CI, WebSocket roster hub, real-client-IP handling, Cloudflare Tunnel, VPS deploy, backups, k6 load test, logs and health checks | Schema, migrations, seeds, ERD. Admin: courses, sections, rooms, instructor registration, CSV enrollment import. Professor: open/close a class session, session history, manual check-in. Report views + CSV export | Google sign-in + login policy (ADR 0007), `user_roles` + RLS + DB roles, audit log, rotating HMAC QR + validation, the check-in transaction + attempt log, error codes, threat model, pgTAP security tests |
+| UI | **All screens**: layout, shared components in `web/src/ui/`, design. Built against `docs/API.md` with fake data until each endpoint is ready | Provides the endpoints for the admin and professor screens | Provides the endpoints for the login, scanner and student screens |
+| Reviews | Everyone's performance (EXPLAIN plans, load) and API changes that affect the UI | Yayikast's SQL policies | postscrippt's schema (security lens) and boeingxd's edge config |
+| Demo | Infrastructure, live roster, load test, all screens | Admin + professor flow, reports | Login, check-in, blocked attack attempts |
+
+- Networking and UI are owned by boeingxd alone. Networking work is heavy in M0 and M4 and lighter in the middle, which is when the UI gets built.
+- Yayikast has the hardest part. If it falls behind, postscrippt takes the excuse workflow and the student history page.
+- Any API change goes through `docs/API.md` first, so the screens don't break silently.
 
 **Agree on these before building on top of them:**
-- A ↔ B: the table/column list and a role × table × operation matrix (`docs/PERMISSIONS.md`).
-- B ↔ C: the check-in API contract (`docs/API.md`) and the rate-limit numbers.
-- A ↔ C: the NOTIFY payload format and the DB connection pool settings.
+- postscrippt ↔ Yayikast: the table/column list and a role × table × operation matrix (`docs/PERMISSIONS.md`).
+- Yayikast ↔ boeingxd: the check-in API contract (`docs/API.md`) and the rate-limit numbers.
+- postscrippt ↔ boeingxd: the NOTIFY payload format and the DB connection pool settings.
 
 ---
 
 ## 9. Learning path and milestones
 
-Every step has the same shape: **learn** the idea (short explanation) → **build** it → **check** it works. Steps are small on purpose. Owners are in brackets.
+Every step has the same shape: **learn** the idea (short explanation) → **build** it → **check** it works. Steps are small on purpose. Owners are in brackets. Screens for every step are built by boeingxd.
 
 ### M0: Foundations (weeks 1–2)
 | Step | Build | You learn |
 |---|---|---|
 | 0.1 | Install the tools: Git, Node 22, Docker Desktop, dbmate, VS Code. Clone the repo | Tooling, Git branches and PRs |
 | 0.2 | Repo skeleton: folders, `.gitignore`, `.env.example`, CODEOWNERS, PR template | Project structure, secrets hygiene |
-| 0.3 | `docker-compose.yml` with only Postgres + PostGIS; connect with a DB client [C] | Containers, ports, environment variables |
-| 0.4 | First migration: extensions, schemas, enums, DB roles [A+B] | What a migration is, `up`/`down` |
-| 0.5 | Academic tables + seed data + ERD (`docs/ERD.md`) [A] | Keys, foreign keys, constraints, normalisation |
-| 0.6 | Fastify "hello" + `/healthz` that queries the DB [C] | HTTP servers, connection pools |
-| 0.7 | Caddy in front with local HTTPS and security headers [C] | Reverse proxies, TLS, headers |
-| 0.8 | CI: GitHub Actions runs migrations, pgTAP and API tests [C] | Automated checks |
-| 0.9 | `THREAT_MODEL.md` v1 + `PERMISSIONS.md` [B] | Thinking like an attacker, least privilege |
+| 0.3 | `docker-compose.yml` with only Postgres + PostGIS; connect with a DB client [boeingxd] | Containers, ports, environment variables |
+| 0.4 | First migration: extensions, schemas, enums, DB roles [postscrippt + Yayikast] | What a migration is, `up`/`down` |
+| 0.5 | Academic tables + seed data + ERD (`docs/ERD.md`) [postscrippt] | Keys, foreign keys, constraints, normalisation |
+| 0.6 | Fastify "hello" + `/healthz` that queries the DB [boeingxd] | HTTP servers, connection pools |
+| 0.7 | Caddy in front with local HTTPS and security headers [boeingxd] | Reverse proxies, TLS, headers |
+| 0.8 | CI: GitHub Actions runs migrations, pgTAP and API tests [boeingxd] | Automated checks |
+| 0.9 | `THREAT_MODEL.md` v1 + `PERMISSIONS.md` [Yayikast] | Thinking like an attacker, least privilege |
 
 ### M1: Walking skeleton (weeks 3–4)
 | Step | Build | You learn |
 |---|---|---|
-| 1.1 | Google sign-in, `users` + `auth_sessions`, domain check [B] | OAuth/OIDC, cookies, sessions |
-| 1.2 | `user_roles` + first RLS policies + pgTAP test for the "student makes self admin" bug [B] | RLS, testing security |
-| 1.3 | Instructor opens/closes a class session; projector shows the rotating HMAC QR [B+A] | HMAC, stateless tokens |
-| 1.4 | Student check-in: claim → login → GPS → one transaction [B] | Transactions, race conditions, PostGIS distance |
-| 1.5 | Live roster: NOTIFY → WebSocket hub → browser [C] | LISTEN/NOTIFY, WebSockets |
-| 1.6 | Cloudflare Tunnel so you can test on real phones [C] | Why phones need real HTTPS |
+| 1.1 | Google sign-in, `users` + `students` + `auth_sessions`, login policy (ADR 0007) [Yayikast] | OAuth/OIDC, cookies, sessions |
+| 1.2 | `user_roles` + first RLS policies + pgTAP test for the "student makes self admin" bug [Yayikast] | RLS, testing security |
+| 1.3 | Instructor opens/closes a class session; projector shows the rotating HMAC QR [Yayikast + postscrippt] | HMAC, stateless tokens |
+| 1.4 | Student check-in: claim → login → GPS → one transaction [Yayikast] | Transactions, race conditions, PostGIS distance |
+| 1.5 | Live roster: NOTIFY → WebSocket hub → browser [boeingxd] | LISTEN/NOTIFY, WebSockets |
+| 1.6 | Cloudflare Tunnel so you can test on real phones [boeingxd] | Why phones need real HTTPS |
 
 **M1 done when:** an instructor opens a session → the projector shows the QR → a student signs in on a phone → the check-in is recorded → the roster updates live.
 
 ### M2: Hardening (weeks 5–6)
-- zod validation on every route, error codes only, CORS allowlist [B+C]
-- Rate limits in Caddy and the app [C]
-- Audit triggers → `audit.events` [B]
-- Risk flags (GPS accuracy, campus network) shown in the roster [B]
-- pgTAP tests covering every §2 bug [B]
-- WebSocket reconnect + re-sync; projector "degraded" badge [C]
+- zod validation on every route, error codes only, CORS allowlist [Yayikast + boeingxd]
+- Rate limits in Caddy and the app [boeingxd]
+- Audit triggers → `audit.events` [Yayikast]
+- Risk flags (GPS accuracy, campus network) shown in the roster [Yayikast]
+- pgTAP tests covering every §2 bug [Yayikast]
+- WebSocket reconnect + re-sync; projector "degraded" badge [boeingxd]
 
 ### M3: Academic features (weeks 7–8)
-- CSV import for sections and enrollments [A]
-- Manual check-in by the instructor [A+B]
-- Excuse workflow (request → approve/reject) [A]
-- Report views (roster with absents, attendance rate per section) + CSV export [A]
+- CSV import for sections and enrollments [postscrippt]
+- Manual check-in by the instructor [postscrippt + Yayikast]
+- Excuse workflow (request → approve/reject) [postscrippt]
+- Report views (roster with absents, attendance rate per section) + CSV export [postscrippt]
 
 ### M4: Deploy and polish (weeks 9–10)
-- Deploy the Compose stack to a VPS with a real domain [C]
-- Nightly `pg_dump` + a tested restore [A+C]
-- k6 load test against the capacity target [C]
+- Deploy the Compose stack to a VPS with a real domain [boeingxd]
+- Nightly `pg_dump` + a tested restore [postscrippt + boeingxd]
+- k6 load test against the capacity target [boeingxd]
 - Demo script [all]
 
 ### Stretch goals (only if the core is done)
@@ -315,7 +321,7 @@ Table partitioning for `attendance`, materialized views, pgaudit, point-in-time 
 
 ## 11. Working agreement
 - **Branches:** `<initial>/<short-topic>` (e.g. `a/terms-schema`). Never commit directly to `main`.
-- **PRs:** small and single-purpose. The description says *what, why, how tested*. Schema or permission changes need **B's** review.
+- **PRs:** small and single-purpose. The description says *what, why, how tested*. Schema or permission changes need **Yayikast's** review.
 - **Definition of done:** tests pass in CI, migrations are reversible, docs are updated, and there are no secrets in the diff.
 - **Security bugs:** write a regression test **before** the fix.
 - **Weekly:** a 30-minute sync covering the demo of what merged, blockers, and the next step.
