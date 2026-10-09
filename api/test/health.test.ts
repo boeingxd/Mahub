@@ -54,3 +54,42 @@ describe('health endpoints', () => {
     expect(forwarded.headers['x-request-id']).toBe('from-caddy-123');
   });
 });
+
+describe('real client IP behind a proxy', () => {
+  // A throwaway route that echoes request.ip, added only in this test.
+  const withIpRoute = (trustProxy: string) => {
+    app = buildApp({ db: workingDb, logLevel: 'silent', trustProxy });
+    app.get('/test-ip', async (request) => ({ ip: request.ip }));
+    return app;
+  };
+
+  it('uses X-Forwarded-For when the request comes from the trusted proxy', async () => {
+    const res = await withIpRoute('172.28.1.0/24').inject({
+      method: 'GET',
+      url: '/test-ip',
+      remoteAddress: '172.28.1.5', // pretend Caddy sent it
+      headers: { 'x-forwarded-for': '203.0.113.7' },
+    });
+    expect(res.json()).toEqual({ ip: '203.0.113.7' });
+  });
+
+  it('ignores X-Forwarded-For from anyone else (it could be faked)', async () => {
+    const res = await withIpRoute('172.28.1.0/24').inject({
+      method: 'GET',
+      url: '/test-ip',
+      remoteAddress: '10.9.9.9', // not Caddy
+      headers: { 'x-forwarded-for': '203.0.113.7' },
+    });
+    expect(res.json()).toEqual({ ip: '10.9.9.9' });
+  });
+
+  it('trusts nobody when TRUST_PROXY is empty', async () => {
+    const res = await withIpRoute('').inject({
+      method: 'GET',
+      url: '/test-ip',
+      remoteAddress: '172.28.1.5',
+      headers: { 'x-forwarded-for': '203.0.113.7' },
+    });
+    expect(res.json()).toEqual({ ip: '172.28.1.5' });
+  });
+});

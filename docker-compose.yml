@@ -1,5 +1,6 @@
-# Local development stack: the database and the API.
-# web and caddy get added in later steps (see PROJECT_PLAN.md §9).
+# Local development stack: Caddy (the front door), the API and the database.
+# The web app is added in task B3 (see PROJECT_PLAN.md §8).
+# Open https://localhost/api/healthz once it's running. docs/NETWORK.md has the diagram.
 #
 #   docker compose up -d      start in the background
 #   docker compose ps         see what's running
@@ -22,7 +23,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       # Only listen on 127.0.0.1 so the DB isn't reachable from other machines on your Wi-Fi.
+      # (Published so dbmate and psql on your laptop can reach it.)
       - "127.0.0.1:${DB_PORT:-5432}:5432"
+    networks:
+      - backend
     volumes:
       # Data lives in a named volume, so it survives container restarts.
       - db-data:/var/lib/postgresql/data
@@ -39,17 +43,20 @@ services:
       # Inside Compose, containers reach each other by service name, so the
       # host is "db", not "localhost" (localhost would be the api container itself).
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/mahub?sslmode=disable
-      # Listen on all interfaces inside the container so the port mapping can reach it.
+      # Listen on all interfaces inside the container, so Caddy can reach it.
       API_HOST: 0.0.0.0
       API_PORT: 3000
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Believe the X-Forwarded-For header (the real visitor IP) only when the
+      # request comes from the frontend network, i.e. from Caddy.
+      TRUST_PROXY: 172.28.1.0/24
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      # Temporary: lets you curl the API directly while we build it.
-      # Issue #10 removes this so the API is reachable only through Caddy.
-      - "127.0.0.1:${API_PORT:-3000}:3000"
+    # No "ports:" on purpose: the API is reachable only through Caddy.
+    networks:
+      - frontend
+      - backend
     healthcheck:
       # "Healthy" means ready to serve: the API answers AND can reach the DB.
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/readyz || exit 1"]
@@ -57,5 +64,40 @@ services:
       timeout: 3s
       retries: 5
 
+  caddy:
+    # The edge server: HTTPS, security headers, and routing to the API.
+    # Its config is infra/caddy/Caddyfile.
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      HSTS_MAX_AGE: ${HSTS_MAX_AGE:-300}
+    ports:
+      # The only published web ports. 80 just redirects to 443 (HTTPS).
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Caddy's certificate authority lives here. Keeping it in a volume means
+      # you only have to trust it on your Mac once (see docs/NETWORK.md).
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+    networks:
+      - frontend
+
+# Two separate networks, so each service can reach only what it needs:
+#   frontend: caddy <-> api      backend: api <-> db
+# Caddy can't reach the database at all.
+networks:
+  frontend:
+    ipam:
+      config:
+        # A fixed address range, so the API knows which IPs are "Caddy" (TRUST_PROXY above).
+        - subnet: 172.28.1.0/24
+  backend:
+
 volumes:
   db-data:
+  caddy-data:
+  caddy-config:

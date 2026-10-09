@@ -9,6 +9,10 @@ const ConfigSchema = z.object({
   API_HOST: z.string().default('127.0.0.1'),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  // Which proxy addresses may tell us the visitor's real IP (X-Forwarded-For),
+  // as a comma-separated list of IPs or ranges, e.g. "172.28.1.0/24".
+  // Empty = trust nobody, which is right for `npm run dev` with no proxy.
+  TRUST_PROXY: z.string().default(''),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

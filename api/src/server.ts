@@ -4,7 +4,7 @@ import { createPool } from './db.js';
 
 const config = loadConfig();
 const pool = createPool(config.DATABASE_URL);
-const app = buildApp({ db: pool, logLevel: config.LOG_LEVEL });
+const app = buildApp({ db: pool, logLevel: config.LOG_LEVEL, trustProxy: config.TRUST_PROXY });
 
 // Without this, an idle pooled connection that dies (e.g. the DB restarts)
 // emits an 'error' event that would crash the whole process.

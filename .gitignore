@@ -8,6 +8,9 @@ node_modules/
 dist/
 coverage/
 
+# Caddy's local CA certificate, copied out only to trust it (docs/NETWORK.md)
+caddy-root.crt
+
 # OS / editor junk
 .DS_Store
 *.log

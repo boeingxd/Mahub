@@ -5,11 +5,13 @@ import type { Queryable } from './db.js';
 export interface AppOptions {
   db: Queryable;
   logLevel?: string;
+  // Comma-separated proxy IPs/ranges to trust for X-Forwarded-For ('' = none).
+  trustProxy?: string;
 }
 
 // Builds the Fastify app without starting it. server.ts calls listen();
 // tests call app.inject() to send fake requests without opening a port.
-export function buildApp({ db, logLevel = 'info' }: AppOptions): FastifyInstance {
+export function buildApp({ db, logLevel = 'info', trustProxy = '' }: AppOptions): FastifyInstance {
   const app = Fastify({
     logger: {
       level: logLevel,
@@ -19,9 +21,14 @@ export function buildApp({ db, logLevel = 'info' }: AppOptions): FastifyInstance
         req: (req) => ({ method: req.method, url: req.url }),
       },
     },
+    // Behind Caddy, every request seems to come from Caddy's address. Caddy
+    // puts the visitor's real IP in X-Forwarded-For, and Fastify uses it for
+    // request.ip, but only if the request came from a proxy we trust.
+    // Otherwise anyone could send a fake X-Forwarded-For header.
+    trustProxy: trustProxy === '' ? false : trustProxy,
     // Every request gets an ID that appears in all of its log lines.
-    // If a proxy in front (Caddy, issue #10) already set X-Request-Id, reuse it
-    // so one ID follows the request across services.
+    // Caddy sets X-Request-Id on every request; reuse it so one ID follows
+    // the request across services.
     requestIdHeader: 'x-request-id',
     genReqId: () => randomUUID(),
   });

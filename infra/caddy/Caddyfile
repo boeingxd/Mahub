@@ -1,0 +1,64 @@
+# Caddy is our edge server: the only thing reachable from outside Docker.
+# Every request from a browser arrives here first, over HTTPS, and Caddy
+# forwards it to the right service inside the Compose network.
+# See docs/NETWORK.md for the full picture.
+
+{
+	# Caddy would normally try to add its local certificate authority to the
+	# trust store of the machine it runs on. Inside a container that's
+	# pointless (your Mac is what needs to trust it; see docs/NETWORK.md).
+	skip_install_trust
+}
+
+localhost {
+	# "internal" = Caddy acts as its own small certificate authority and
+	# issues a certificate for localhost. (Real domains would get one from
+	# Let's Encrypt automatically.) Plain http://localhost is redirected here.
+	tls internal
+
+	# Security headers, added to every response.
+	header {
+		# HSTS: "only ever use HTTPS for this site". The browser remembers it
+		# for max-age seconds. Short by default, because on localhost it also
+		# affects your other local projects; the demo can raise it.
+		Strict-Transport-Security "max-age={$HSTS_MAX_AGE:300}"
+		# CSP: only load scripts, styles, images, etc. from our own site.
+		# No inline scripts, so an injected <script> tag won't run.
+		# data: images are allowed for the QR code. frame-ancestors 'none'
+		# stops other sites from showing us inside an invisible frame.
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		# Don't let the browser guess a file's type (e.g. run a .txt as script).
+		X-Content-Type-Options "nosniff"
+		# When following a link to another site, send only our origin, not the full URL.
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Which device features pages may ask for. Only our own pages may ask
+		# for location (the check-in page needs it); camera and mic: nobody.
+		Permissions-Policy "geolocation=(self), camera=(), microphone=()"
+		# Don't advertise which server software we run.
+		-Server
+	}
+
+	# A fresh ID for every request. It replaces any X-Request-Id the client
+	# sent (clients can't choose it), and the API logs it on every line.
+	request_header X-Request-Id {http.request.uuid}
+
+	# /api/* → the API. handle_path strips the /api prefix, so the API's own
+	# routes stay short: https://localhost/api/healthz reaches GET /healthz.
+	handle_path /api/* {
+		reverse_proxy api:3000
+	}
+
+	# QR scan links (task Y3) and the live roster WebSocket (task B5) also go
+	# to the API, with their paths unchanged.
+	handle /c/* {
+		reverse_proxy api:3000
+	}
+	handle /ws {
+		reverse_proxy api:3000
+	}
+
+	# Everything else will be the web app (task B3). Until then, a placeholder.
+	handle {
+		respond "Mahub: the web app arrives in task B3. Try /api/healthz" 200
+	}
+}
