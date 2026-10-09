@@ -1,0 +1,38 @@
+/*
+ * Design tokens: every colour, size and spacing the app uses, in one place.
+ * Components use these variables (var(--space-3)) instead of raw values,
+ * so changing the look means editing this file only.
+ */
+:root {
+  /* Colours */
+  --color-bg: #f7f7f8;
+  --color-surface: #ffffff;
+  --color-text: #1b1d21;
+  --color-text-muted: #5f6470;
+  --color-border: #d9dbe0;
+  --color-primary: #1f5fbf;
+  --color-primary-text: #ffffff;
+  --color-success: #1e7d45;
+  --color-warning: #a36200;
+  --color-danger: #b42318;
+  --color-neutral: #5f6470;
+
+  /* Spacing scale (multiples of 4px) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Type */
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 20px;
+  --font-size-xl: 28px;
+
+  /* Shape */
+  --radius: 8px;
+  --max-width: 960px;
+}

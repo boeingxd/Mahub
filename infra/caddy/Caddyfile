@@ -2,7 +2,6 @@
 # Every request from a browser arrives here first, over HTTPS, and Caddy
 # forwards it to the right service inside the Compose network.
 # See docs/NETWORK.md for the full picture.
-
 {
 	# Caddy would normally try to add its local certificate authority to the
 	# trust store of the machine it runs on. Inside a container that's
@@ -57,8 +56,21 @@ localhost {
 		reverse_proxy api:3000
 	}
 
-	# Everything else will be the web app (task B3). Until then, a placeholder.
+	# Everything else is the React web app: plain files built by Vite into /srv.
+	# Built JS/CSS files live in /assets/. A missing one must be a real 404
+	# (not index.html), or a browser with an old page open gets HTML instead
+	# of JavaScript and breaks in a confusing way.
+	handle /assets/* {
+		root * /srv
+		file_server
+	}
 	handle {
-		respond "Mahub: the web app arrives in task B3. Try /api/healthz" 200
+		root * /srv
+		# The app has its own pages (/instructor, /checkin, ...) that exist only
+		# inside React, not as files. If no file matches the path, send
+		# index.html and let React show the right page. Without this, reloading
+		# /instructor would be a 404.
+		try_files {path} /index.html
+		file_server
 	}
 }

@@ -6,13 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Read `PROJECT_PLAN.md` before writing anything.** It is the spec, and §8 is the 3-week schedule (2 weeks to the demo on Fri 23 Oct, then 1 buffer week; ADR 0008). `docs/BASICS.md` explains every concept in plain English, so point teammates there. Decisions are in `docs/decisions/` (ADRs). If code and the plan disagree, ask before changing either. Keep the commands below up to date as more pieces land.
 
-So far: Postgres, the API skeleton (`/healthz`, `/readyz`) and Caddy in Docker Compose. Caddy is the only way in (`https://localhost/api/...`); `docs/NETWORK.md` has the hops, ports and trust rules. No migrations yet.
+So far: Postgres, the API skeleton (`/healthz`, `/readyz`), Caddy, and the web app skeleton (React pages with fake data) in Docker Compose. Caddy is the only way in: `https://localhost/` (web) and `https://localhost/api/...` (API). `docs/NETWORK.md` has the hops, ports and trust rules; `docs/SCREENS.md` lists the screens. No migrations yet.
 
 ## Commands
 
 - Database: `docker compose up -d db`, `dbmate create`, `dbmate up`. Connect with `docker compose exec db psql -U postgres -d mahub`.
 - API (run in `api/`): `npm run dev` (reads `../.env`), `npm test` (vitest), `npm run lint` (`tsc --noEmit`), `npm run build`.
 - Full stack in Docker: `docker compose up -d --build`, then `curl -k https://localhost/api/readyz`. The API isn't published; `infra/caddy/Caddyfile` strips `/api` before forwarding.
+- Web (run in `web/`): `npm run dev` (http://127.0.0.1:5173, proxies `/api` to the stack), `npm run build`, `npm run lint` (oxlint). The Caddy image (`infra/caddy/Dockerfile`) builds `web/` into `/srv`, so rebuild it after web changes: `docker compose up -d --build caddy`.
+- CSP forbids inline scripts and inline `style` attributes: style with classes in `web/src/ui/ui.css` and tokens in `web/src/ui/tokens.css`.
 - `api/src/app.ts` builds the Fastify app without listening, so tests use `app.inject()` with a fake `db`. `api/src/server.ts` is the real entrypoint.
 
 Mahub is graded in two courses, **Database Systems** and **Computer Networks**, so keep the features that show those skills. Mahub is a secure university attendance system. The instructor opens a short check-in window and projects a QR that rotates every 10 seconds. Students scan it and sign in with Google, the server verifies the evidence and records attendance in one transaction, and a live roster updates over WebSocket. The priorities, in order, are anti-cheating, database design, database security and networking. UI comes last and should stay plain.
