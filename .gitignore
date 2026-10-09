@@ -14,3 +14,6 @@ caddy-root.crt
 # OS / editor junk
 .DS_Store
 *.log
+
+# Playwright MCP page snapshots
+.playwright-mcp/

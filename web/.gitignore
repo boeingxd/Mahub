@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Design-review screenshots and tool caches (Impeccable, Hallmark, Playwright)
+.impeccable/review/
+.hallmark/

@@ -11,5 +11,5 @@ Identity relies on the user's Google account (ADR 0007). We assume students won'
 
 ## Consequences
 - A large reduction in scope (no credential table, registration flow or recovery process).
-- What still protects check-in: the QR rotates every 10s, the GPS geofence, single check-in per student, the short window the instructor controls, risk flags, and the instructor's own visual check.
+- What still protects check-in: the QR rotates every 10s, the GPS geofence, single check-in per student, the short window the instructor controls, and the instructor's own visual check.
 - Residual risk, documented in the threat model: a student who shares their Google password could be checked in by a friend who is in the room.

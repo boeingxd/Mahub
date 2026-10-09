@@ -1,38 +1,142 @@
+/* Hallmark · genre: modern-minimal · macrostructure: app (role-based flows) · theme: custom "Wallet passes"
+ * vibe: "Apple Wallet and Settings, class-coloured passes" · paper #F2F2F7 / #000 · tint #0066CC / #4DA3FF cool
+ * display + body: system UI font (SF Pro on Apple devices) · data: tabular digits · axes: light+dark / system-native / cool
+ * design-system: web/DESIGN.md · concept: web/CONCEPT.md · designed-as-app
+ */
+
 /*
- * Design tokens: every colour, size and spacing the app uses, in one place.
+ * Design tokens: every colour, font, size and spacing the app uses, in one place.
  * Components use these variables (var(--space-3)) instead of raw values,
  * so changing the look means editing this file only.
+ *
+ * The look follows Apple's apps (Wallet, Settings): the phone's own font,
+ * grouped lists, and one colour per class, like passes in Apple Wallet.
+ * Light and dark follow the device setting automatically (no switch in the app).
+ * Text colours are checked for at least 4.5:1 contrast on their background.
  */
 :root {
-  /* Colours */
-  --color-bg: #f7f7f8;
-  --color-surface: #ffffff;
-  --color-text: #1b1d21;
-  --color-text-muted: #5f6470;
-  --color-border: #d9dbe0;
-  --color-primary: #1f5fbf;
+  color-scheme: light dark;
+
+  /* Surfaces */
+  --color-bg: #f2f2f7; /* grouped background, like iOS Settings */
+  --color-surface: #ffffff; /* a card or list on top of it */
+  --color-surface-2: #e9e9ee; /* pressed rows, segmented control track */
+  --color-border: #c6c6c8; /* separators between rows */
+
+  /* Text */
+  --color-text: #000000;
+  --color-text-muted: #6c6c70; /* 5.3:1 on white, 4.8:1 on the grey background */
+
+  /* Tint: links and primary buttons */
+  --color-primary: #0066cc; /* tint as text: 5.6:1 on white */
+  --color-primary-fill: #0071e3; /* filled button background: white text 4.6:1 */
+  --color-primary-fill-hover: #0062c4;
   --color-primary-text: #ffffff;
-  --color-success: #1e7d45;
-  --color-warning: #a36200;
-  --color-danger: #b42318;
-  --color-neutral: #5f6470;
+  --color-primary-wash: #e5f0fc; /* tinted (secondary) button background */
+
+  /* Status. One colour means one thing: green = present, red = problem/absent, amber = needs a look. */
+  --color-success: #1a7230; /* 4.9:1 on its wash */
+  --color-success-wash: #e3f4e7;
+  --color-danger: #d70015;
+  --color-danger-wash: #fde7e9;
+  --color-warning: #8a5300;
+  --color-warning-wash: #fdf0d9;
+  --color-neutral: #5e5e63; /* 5.0:1 on its wash */
+  --color-neutral-wash: #ececf0;
+
+  /* Class pass colours (like Apple Wallet). They identify a class and never mean
+     status. White text on each is at least 4.5:1, in light and dark mode alike. */
+  --pass-teal: #0b7a75;
+  --pass-indigo: #4b44c8;
+  --pass-orange: #b4530a;
+  --pass-pink: #b4245e;
+  --pass-slate: #4a5568; /* no green: green means "present" */
+  --pass-purple: #7e3aae;
+  --pass-text: #ffffff;
+  --pass-text-muted: #ffffff; /* labels on a pass: white too, told apart by size and weight (tints fell below 4.5:1) */
+  --pass-rule: rgb(255 255 255 / 0.3);
+  --pass-button: #ffffff; /* the white button on a pass */
+  --pass-track: rgb(0 0 0 / 0.2); /* segmented control track on a pass (darker keeps white text ≥ 4.5:1) */
+
+  /* The projector screen is always dark, whatever the laptop's setting. */
+  --color-board: #000000;
+  --color-board-text: #ffffff;
+  --color-board-muted: #c7c7cc;
+  --color-qr-tile: #ffffff; /* QR codes need pure white behind them */
+  --color-qr-guide: #c6c6c8; /* placeholder outline (always on white) */
+  --color-qr-guide-text: #6c6c70;
+
+  --color-focus: #0071e3;
+  --color-scrim: rgb(0 0 0 / 0.4);
+
+  /* Depth: soft, offset shadows only on things that sit above the page. */
+  --shadow-pass: 0 1px 2px rgb(0 0 0 / 0.08), 0 8px 24px rgb(0 0 0 / 0.08);
+  --shadow-control: 0 1px 3px rgb(0 0 0 / 0.12), 0 1px 1px rgb(0 0 0 / 0.04);
 
   /* Spacing scale (multiples of 4px) */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
 
-  /* Type */
-  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-size-sm: 14px;
-  --font-size-md: 16px;
-  --font-size-lg: 20px;
-  --font-size-xl: 28px;
+  /* Type: the device's own system font (San Francisco on Apple devices),
+     so nothing has to be downloaded. Sizes follow Apple's iOS text styles. */
+  --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Noto Sans Thai', 'Helvetica Neue',
+    sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, 'Noto Sans Thai',
+    'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; /* code only; numbers use tabular digits */
+  --font-size-xs: 12px; /* caption */
+  --font-size-sm: 13px; /* footnote */
+  --font-size-subhead: 15px;
+  --font-size-md: 17px; /* body, headline */
+  --font-size-lg: 22px; /* title 2 */
+  --font-size-xl: 28px; /* title 1 */
+  --font-size-large-title: 34px;
+  --font-size-sheet: 20px; /* action sheet choices, as on iOS */
+  --font-size-stat: clamp(2.75rem, 7vw, 3.5rem); /* big numbers: rates, counts */
+  --font-size-board: clamp(5rem, 22vh, 12rem); /* projector count, read from the back row */
 
   /* Shape */
-  --radius: 8px;
-  --max-width: 960px;
+  --radius: 12px; /* grouped lists, cards, buttons */
+  --radius-pass: 20px; /* class passes */
+  --radius-pill: 999px;
+  --tap-target: 44px; /* Apple's minimum touch size */
+  --max-width: 1040px;
+  --max-width-phone: 560px; /* student screens */
+  --tab-bar-height: 56px;
+
+  /* Motion: one moment (the pass sliding up). Everything else is a quick fade. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-short: 150ms;
+  --dur-pass: 450ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #000000;
+    --color-surface: #1c1c1e;
+    --color-surface-2: #2c2c2e;
+    --color-border: #38383a;
+    --color-text: #ffffff;
+    --color-text-muted: #aeaeb2; /* 7.8:1 on #1C1C1E */
+    --color-primary: #4da3ff;
+    --color-primary-wash: #10243a;
+    --color-success: #30d158;
+    --color-success-wash: #0f2a17;
+    --color-danger: #ff6961;
+    --color-danger-wash: #3a1416;
+    --color-warning: #ffb340;
+    --color-warning-wash: #3a2a0f;
+    --color-neutral: #aeaeb2;
+    --color-neutral-wash: #2c2c2e;
+    --color-focus: #4da3ff;
+    --color-scrim: rgb(0 0 0 / 0.6);
+  }
 }

@@ -1,0 +1,780 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-09T18:19:44.249686+00:00",
+  "title": "Design System: Mahub",
+  "extensions": {
+    "colorMeta": {
+      "tint": {
+        "role": "primary",
+        "displayName": "System Blue",
+        "canonical": "#0066cc",
+        "tonalRamp": [
+          "#00264c",
+          "#004080",
+          "#0059b2",
+          "#0073e6",
+          "#1a8cff",
+          "#66b2ff",
+          "#b2d9ff",
+          "#e5f2ff"
+        ]
+      },
+      "tint-fill": {
+        "role": "primary",
+        "displayName": "Fill Blue",
+        "canonical": "#0071e3",
+        "tonalRamp": [
+          "#00264c",
+          "#003f80",
+          "#0059b2",
+          "#0072e6",
+          "#1a8cff",
+          "#66b2ff",
+          "#b2d9ff",
+          "#e5f2ff"
+        ]
+      },
+      "tint-fill-hover": {
+        "role": "primary",
+        "displayName": "Fill Blue Hover",
+        "canonical": "#0062c4",
+        "tonalRamp": [
+          "#00264c",
+          "#004080",
+          "#0059b2",
+          "#0073e6",
+          "#1a8cff",
+          "#66b2ff",
+          "#b2d9ff",
+          "#e5f2ff"
+        ]
+      },
+      "tint-wash": {
+        "role": "primary",
+        "displayName": "Blue Wash",
+        "canonical": "#e5f0fc",
+        "tonalRamp": [
+          "#082545",
+          "#0d3e72",
+          "#1256a0",
+          "#186fce",
+          "#3188e7",
+          "#76b0ef",
+          "#bad7f7",
+          "#e8f2fc"
+        ]
+      },
+      "grouped-ground": {
+        "role": "neutral",
+        "displayName": "Grouped Ground",
+        "canonical": "#f2f2f7",
+        "tonalRamp": [
+          "#1d1d2f",
+          "#31314f",
+          "#44446f",
+          "#57578e",
+          "#7171a8",
+          "#a0a0c5",
+          "#d0d0e2",
+          "#efeff5"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#737373",
+          "#8c8c8c",
+          "#b2b2b2",
+          "#d9d9d9",
+          "#f2f2f2"
+        ]
+      },
+      "surface-pressed": {
+        "role": "neutral",
+        "displayName": "Pressed Surface",
+        "canonical": "#e9e9ee",
+        "tonalRamp": [
+          "#21212b",
+          "#383848",
+          "#4e4e65",
+          "#646481",
+          "#7e7e9b",
+          "#a9a9bc",
+          "#d4d4de",
+          "#f1f1f4"
+        ]
+      },
+      "separator": {
+        "role": "neutral",
+        "displayName": "Separator",
+        "canonical": "#c6c6c8",
+        "tonalRamp": [
+          "#262627",
+          "#3f3f41",
+          "#58585b",
+          "#717175",
+          "#8a8a8e",
+          "#b1b1b4",
+          "#d8d8d9",
+          "#f2f2f2"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#737373",
+          "#8c8c8c",
+          "#b2b2b2",
+          "#d9d9d9",
+          "#f2f2f2"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "#6c6c70",
+        "tonalRamp": [
+          "#262627",
+          "#3f3f41",
+          "#58585b",
+          "#717175",
+          "#8a8a8e",
+          "#b1b1b4",
+          "#d8d8d9",
+          "#f2f2f2"
+        ]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Success",
+        "canonical": "#1a7230",
+        "tonalRamp": [
+          "#0e3e1a",
+          "#18682c",
+          "#21913d",
+          "#2bbb4f",
+          "#44d468",
+          "#82e39a",
+          "#c1f1cd",
+          "#eafaee"
+        ]
+      },
+      "success-wash": {
+        "role": "tertiary",
+        "displayName": "Success Wash",
+        "canonical": "#e3f4e7",
+        "tonalRamp": [
+          "#16371d",
+          "#245c31",
+          "#328045",
+          "#41a558",
+          "#5abe72",
+          "#91d4a1",
+          "#c8e9d0",
+          "#edf8ef"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Danger",
+        "canonical": "#d70015",
+        "tonalRamp": [
+          "#4c0007",
+          "#80000c",
+          "#b20011",
+          "#e60016",
+          "#ff1a30",
+          "#ff6675",
+          "#ffb2ba",
+          "#ffe5e8"
+        ]
+      },
+      "danger-wash": {
+        "role": "tertiary",
+        "displayName": "Danger Wash",
+        "canonical": "#fde7e9",
+        "tonalRamp": [
+          "#47060c",
+          "#760a14",
+          "#a50e1b",
+          "#d41223",
+          "#ed2b3d",
+          "#f3727e",
+          "#f9b8be",
+          "#fde7e9"
+        ]
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Warning",
+        "canonical": "#8a5300",
+        "tonalRamp": [
+          "#4c2e00",
+          "#804d00",
+          "#b26b00",
+          "#e68a00",
+          "#ffa41a",
+          "#ffc266",
+          "#ffe1b2",
+          "#fff5e5"
+        ]
+      },
+      "warning-wash": {
+        "role": "tertiary",
+        "displayName": "Warning Wash",
+        "canonical": "#fdf0d9",
+        "tonalRamp": [
+          "#493004",
+          "#795006",
+          "#aa7009",
+          "#da8f0b",
+          "#f4a925",
+          "#f7c66e",
+          "#fbe2b6",
+          "#fef5e7"
+        ]
+      },
+      "neutral": {
+        "role": "tertiary",
+        "displayName": "Neutral",
+        "canonical": "#5e5e63",
+        "tonalRamp": [
+          "#252527",
+          "#3e3e41",
+          "#57575c",
+          "#707076",
+          "#89898f",
+          "#b1b1b4",
+          "#d8d8da",
+          "#f2f2f3"
+        ]
+      },
+      "neutral-wash": {
+        "role": "tertiary",
+        "displayName": "Neutral Wash",
+        "canonical": "#ececf0",
+        "tonalRamp": [
+          "#22222b",
+          "#383847",
+          "#4f4f64",
+          "#656580",
+          "#7f7f9a",
+          "#aaaabb",
+          "#d4d4dd",
+          "#f1f1f4"
+        ]
+      },
+      "pass-teal": {
+        "role": "secondary",
+        "displayName": "Teal Pass",
+        "canonical": "#0b7a75",
+        "tonalRamp": [
+          "#064643",
+          "#0b7570",
+          "#0fa49d",
+          "#13d3ca",
+          "#2cece3",
+          "#73f2ed",
+          "#b9f9f6",
+          "#e8fdfc"
+        ]
+      },
+      "pass-indigo": {
+        "role": "secondary",
+        "displayName": "Indigo Pass",
+        "canonical": "#4b44c8",
+        "tonalRamp": [
+          "#14113b",
+          "#211d63",
+          "#2e298a",
+          "#3b34b1",
+          "#544ecb",
+          "#8d89dc",
+          "#c6c4ee",
+          "#ecebf9"
+        ]
+      },
+      "pass-orange": {
+        "role": "secondary",
+        "displayName": "Orange Pass",
+        "canonical": "#b4530a",
+        "tonalRamp": [
+          "#482104",
+          "#793807",
+          "#a94e09",
+          "#d9640c",
+          "#f37e26",
+          "#f7a96e",
+          "#fbd4b7",
+          "#fef1e7"
+        ]
+      },
+      "pass-pink": {
+        "role": "secondary",
+        "displayName": "Pink Pass",
+        "canonical": "#b4245e",
+        "tonalRamp": [
+          "#400d21",
+          "#6a1537",
+          "#951e4e",
+          "#bf2664",
+          "#d9407d",
+          "#e67fa9",
+          "#f2bfd4",
+          "#fbeaf1"
+        ]
+      },
+      "pass-slate": {
+        "role": "secondary",
+        "displayName": "Slate Pass",
+        "canonical": "#4a5568",
+        "tonalRamp": [
+          "#20252d",
+          "#353d4a",
+          "#4a5568",
+          "#5f6e86",
+          "#7987a0",
+          "#a6afbf",
+          "#d2d7df",
+          "#f0f2f4"
+        ]
+      },
+      "pass-purple": {
+        "role": "secondary",
+        "displayName": "Purple Pass",
+        "canonical": "#7e3aae",
+        "tonalRamp": [
+          "#2a1339",
+          "#452060",
+          "#612d86",
+          "#7d39ac",
+          "#9653c6",
+          "#b98cd9",
+          "#dcc6ec",
+          "#f3ecf9"
+        ]
+      },
+      "pass-text": {
+        "role": "secondary",
+        "displayName": "Pass Text",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#737373",
+          "#8c8c8c",
+          "#b2b2b2",
+          "#d9d9d9",
+          "#f2f2f2"
+        ]
+      },
+      "board": {
+        "role": "neutral",
+        "displayName": "Projector Board",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#737373",
+          "#8c8c8c",
+          "#b2b2b2",
+          "#d9d9d9",
+          "#f2f2f2"
+        ]
+      },
+      "board-text": {
+        "role": "neutral",
+        "displayName": "Board Text",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#737373",
+          "#8c8c8c",
+          "#b2b2b2",
+          "#d9d9d9",
+          "#f2f2f2"
+        ]
+      },
+      "board-muted": {
+        "role": "neutral",
+        "displayName": "Board Muted",
+        "canonical": "#c7c7cc",
+        "tonalRamp": [
+          "#242428",
+          "#3d3d43",
+          "#55555d",
+          "#6d6d78",
+          "#878792",
+          "#afafb6",
+          "#d7d7db",
+          "#f2f2f3"
+        ]
+      },
+      "qr-tile": {
+        "role": "neutral",
+        "displayName": "QR Tile",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#737373",
+          "#8c8c8c",
+          "#b2b2b2",
+          "#d9d9d9",
+          "#f2f2f2"
+        ]
+      },
+      "tint-dark": {
+        "role": "primary",
+        "displayName": "Tint Dark",
+        "canonical": "#4da3ff",
+        "tonalRamp": [
+          "#00254c",
+          "#003e80",
+          "#0056b2",
+          "#006fe6",
+          "#1a88ff",
+          "#66b0ff",
+          "#b2d7ff",
+          "#e5f2ff"
+        ]
+      },
+      "grouped-ground-dark": {
+        "role": "neutral",
+        "displayName": "Grouped Ground Dark",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#737373",
+          "#8c8c8c",
+          "#b2b2b2",
+          "#d9d9d9",
+          "#f2f2f2"
+        ]
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "Surface Dark",
+        "canonical": "#1c1c1e",
+        "tonalRamp": [
+          "#252528",
+          "#3e3e42",
+          "#56565c",
+          "#6f6f77",
+          "#888890",
+          "#b0b0b5",
+          "#d7d7da",
+          "#f2f2f3"
+        ]
+      },
+      "surface-pressed-dark": {
+        "role": "neutral",
+        "displayName": "Surface Pressed Dark",
+        "canonical": "#2c2c2e",
+        "tonalRamp": [
+          "#252527",
+          "#3e3e41",
+          "#57575b",
+          "#707075",
+          "#8a8a8f",
+          "#b1b1b4",
+          "#d8d8da",
+          "#f2f2f3"
+        ]
+      },
+      "separator-dark": {
+        "role": "neutral",
+        "displayName": "Separator Dark",
+        "canonical": "#38383a",
+        "tonalRamp": [
+          "#262627",
+          "#3f3f41",
+          "#58585b",
+          "#717175",
+          "#8a8a8e",
+          "#b1b1b4",
+          "#d8d8d9",
+          "#f2f2f2"
+        ]
+      },
+      "ink-muted-dark": {
+        "role": "neutral",
+        "displayName": "Ink Muted Dark",
+        "canonical": "#aeaeb2",
+        "tonalRamp": [
+          "#252527",
+          "#3e3e41",
+          "#57575c",
+          "#707076",
+          "#89898f",
+          "#b1b1b4",
+          "#d8d8da",
+          "#f2f2f3"
+        ]
+      },
+      "success-dark": {
+        "role": "tertiary",
+        "displayName": "Success Dark",
+        "canonical": "#30d158",
+        "tonalRamp": [
+          "#0e3f1a",
+          "#17682b",
+          "#20923d",
+          "#2abc4e",
+          "#43d568",
+          "#82e39a",
+          "#c0f1cd",
+          "#eafaee"
+        ]
+      },
+      "danger-dark": {
+        "role": "tertiary",
+        "displayName": "Danger Dark",
+        "canonical": "#ff6961",
+        "tonalRamp": [
+          "#4c0400",
+          "#800600",
+          "#b20900",
+          "#e60c00",
+          "#ff251a",
+          "#ff6e66",
+          "#ffb6b2",
+          "#ffe7e5"
+        ]
+      },
+      "warning-dark": {
+        "role": "tertiary",
+        "displayName": "Warning Dark",
+        "canonical": "#ffb340",
+        "tonalRamp": [
+          "#4c2e00",
+          "#804d00",
+          "#b26b00",
+          "#e68a00",
+          "#ffa41a",
+          "#ffc266",
+          "#ffe1b2",
+          "#fff5e5"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "large-title": {
+        "displayName": "Large Title",
+        "purpose": "One per screen, top; 28px under 720px."
+      },
+      "title-1": {
+        "displayName": "Title 1",
+        "purpose": "Pass and session titles."
+      },
+      "title-2": {
+        "displayName": "Title 2",
+        "purpose": "Count label, pass rate."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "List titles, buttons."
+      },
+      "subhead": {
+        "displayName": "Subhead",
+        "purpose": "Subtitles, pass code, table, segments."
+      },
+      "footnote": {
+        "displayName": "Footnote",
+        "purpose": "Group headers, footers, badges, alert text."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Uppercase pass field labels only."
+      },
+      "stat": {
+        "displayName": "Stat",
+        "purpose": "Big rates and counts, tabular."
+      },
+      "board": {
+        "displayName": "Board",
+        "purpose": "Projector count only, read from the back row."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-pass",
+        "value": "0 1px 2px rgb(0 0 0 / 0.08), 0 8px 24px rgb(0 0 0 / 0.08)",
+        "purpose": "Class passes and the confirm dialog."
+      },
+      {
+        "name": "shadow-control",
+        "value": "0 1px 3px rgb(0 0 0 / 0.12), 0 1px 1px rgb(0 0 0 / 0.04)",
+        "purpose": "Selected segment of a segmented control."
+      },
+      {
+        "name": "bar-material",
+        "value": "backdrop-filter: saturate(180%) blur(20px) over 82% surface",
+        "purpose": "App bar and tab bar only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "All transitions and the pass entrance."
+      },
+      {
+        "name": "dur-short",
+        "value": "150ms",
+        "purpose": "State transitions: press, hover, segment."
+      },
+      {
+        "name": "dur-pass",
+        "value": "450ms",
+        "purpose": "pass-enter only: result pass slides up from 32px, 40% opacity. Off under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone",
+        "value": "720px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action on a screen.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Start check-in</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:var(--tap-target);padding:0 var(--space-5);border:0;border-radius:var(--radius);font:inherit;font-family:var(--font-body);font-size:var(--font-size-md);font-weight:600;cursor:pointer;transition:background-color var(--dur-short) var(--ease-out),opacity var(--dur-short) var(--ease-out),transform var(--dur-short) var(--ease-out)}.ds-btn:active{transform:scale(.98);opacity:.85}.ds-btn:focus-visible{outline:3px solid var(--color-focus);outline-offset:2px}.ds-btn-primary{background:var(--color-primary-fill);color:var(--color-primary-text)}.ds-btn-primary:hover{background:var(--color-primary-fill-hover)}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Tinted button for the other actions.",
+      "html": "<button class=\"ds-btn-secondary\">Open projector</button>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;min-height:var(--tap-target);padding:0 var(--space-5);border:0;border-radius:var(--radius);font-family:var(--font-body);font-size:var(--font-size-md);font-weight:600;background:var(--color-primary-wash);color:var(--color-primary);cursor:pointer}.ds-btn-secondary:hover{filter:brightness(.96)}.ds-btn-secondary:focus-visible{outline:3px solid var(--color-focus);outline-offset:2px}"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Red tinted button, always behind a confirm dialog.",
+      "html": "<button class=\"ds-btn-destructive\">End session</button>",
+      "css": ".ds-btn-destructive{display:inline-flex;align-items:center;min-height:var(--tap-target);padding:0 var(--space-5);border:0;border-radius:var(--radius);font-family:var(--font-body);font-size:var(--font-size-md);font-weight:600;background:var(--color-danger-wash);color:var(--color-danger);cursor:pointer}.ds-btn-destructive:hover{filter:brightness(.96)}.ds-btn-destructive:focus-visible{outline:3px solid var(--color-focus);outline-offset:2px}"
+    },
+    {
+      "name": "Status Badges",
+      "kind": "chip",
+      "refersTo": "badge-success",
+      "description": "Tinted pills; the only way status is shown.",
+      "html": "<span class=\"ds-badge ds-s\">Present</span> <span class=\"ds-badge ds-d\">Absent</span> <span class=\"ds-badge ds-n\">Excused</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;min-height:22px;padding:0 var(--space-2);border-radius:var(--radius-pill);font-family:var(--font-body);font-size:var(--font-size-sm);font-weight:600}.ds-s{background:var(--color-success-wash);color:var(--color-success)}.ds-d{background:var(--color-danger-wash);color:var(--color-danger)}.ds-w{background:var(--color-warning-wash);color:var(--color-warning)}.ds-n{background:var(--color-neutral-wash);color:var(--color-neutral)}"
+    },
+    {
+      "name": "Class Pass",
+      "kind": "card",
+      "refersTo": "pass",
+      "description": "Signature component: a class in its Wallet-pass colour.",
+      "html": "<article class=\"ds-pass\"><header class=\"ds-pass-top\"><span class=\"ds-pass-code\">ITS332</span><span class=\"ds-pass-badge\">Live</span></header><h2 class=\"ds-pass-title\">Database Systems</h2><p class=\"ds-pass-sub\">Section 1</p><dl class=\"ds-pass-fields\"><div><dt>Enrolled</dt><dd>32</dd></div><div><dt>Room</dt><dd>Sample</dd></div></dl><button class=\"ds-pass-btn\">Start check-in</button></article>",
+      "css": ".ds-pass{--pass-bg:var(--pass-teal);display:grid;gap:var(--space-1);max-width:340px;background:var(--pass-bg);color:var(--pass-text);border-radius:var(--radius-pass);padding:var(--space-5);box-shadow:var(--shadow-pass);font-family:var(--font-body)}.ds-pass-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3)}.ds-pass-code{font-size:var(--font-size-subhead);font-weight:600;letter-spacing:.02em}.ds-pass-badge{display:inline-flex;align-items:center;min-height:22px;padding:0 var(--space-2);border-radius:var(--radius-pill);background:var(--pass-button);color:var(--pass-bg);font-size:var(--font-size-sm);font-weight:600}.ds-pass-title{margin:0;font-family:var(--font-display);font-size:var(--font-size-xl);font-weight:700;line-height:1.15}.ds-pass-sub{margin:0;font-size:var(--font-size-subhead)}.ds-pass-fields{display:flex;gap:var(--space-3) var(--space-8);margin:var(--space-4) 0 0;padding-top:var(--space-4);border-top:1px solid var(--pass-rule)}.ds-pass-fields dt{font-size:var(--font-size-xs);font-weight:600;text-transform:uppercase;letter-spacing:.04em}.ds-pass-fields dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}.ds-pass-btn{margin-top:var(--space-5);width:100%;min-height:var(--tap-target);border:0;border-radius:var(--radius);background:var(--pass-button);color:var(--pass-bg);font:inherit;font-size:var(--font-size-md);font-weight:600;cursor:pointer}.ds-pass-btn:active{transform:scale(.98);opacity:.85}.ds-pass-btn:focus-visible{outline:3px solid var(--pass-text);outline-offset:2px}"
+    },
+    {
+      "name": "Grouped List",
+      "kind": "custom",
+      "refersTo": "list",
+      "description": "iOS Settings-style inset list with header, rows and chevrons.",
+      "html": "<section><h2 class=\"ds-gh\">Recent check-ins</h2><ul class=\"ds-list\"><li><a class=\"ds-row\" href=\"#\"><span class=\"ds-dot\"></span><span class=\"ds-txt\"><span>Database Systems</span><span class=\"ds-sub\">Mon 09:00</span></span><span class=\"ds-bdg\">Present</span></a></li><li><a class=\"ds-row\" href=\"#\"><span class=\"ds-dot ds-dot2\"></span><span class=\"ds-txt\"><span>Computer Networks</span><span class=\"ds-sub\">Tue 13:30</span></span><span class=\"ds-bdg\">Present</span></a></li></ul></section>",
+      "css": ".ds-gh{font-family:var(--font-body);font-size:var(--font-size-sm);font-weight:400;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.02em;margin:0 0 var(--space-2) var(--space-4)}.ds-list{list-style:none;margin:0;padding:0;background:var(--color-surface);border-radius:var(--radius);overflow:hidden;font-family:var(--font-body)}.ds-row{display:flex;align-items:center;gap:var(--space-3);min-height:var(--tap-target);padding:var(--space-3) var(--space-4);color:var(--color-text);text-decoration:none;transition:background-color var(--dur-short) var(--ease-out)}.ds-list>li+li .ds-row{box-shadow:inset var(--space-4) 1px 0 var(--color-surface),inset 0 1px 0 var(--color-border)}.ds-row:hover,.ds-row:active{background:var(--color-surface-2)}.ds-row:focus-visible{outline:3px solid var(--color-focus);outline-offset:-3px}.ds-txt{display:grid;flex:1}.ds-sub{font-size:var(--font-size-subhead);color:var(--color-text-muted);font-variant-numeric:tabular-nums}.ds-dot{width:12px;height:12px;border-radius:50%;background:var(--pass-teal)}.ds-dot2{background:var(--pass-indigo)}.ds-bdg{display:inline-flex;align-items:center;min-height:22px;padding:0 var(--space-2);border-radius:var(--radius-pill);font-size:var(--font-size-sm);font-weight:600;background:var(--color-success-wash);color:var(--color-success)}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "iOS segmented control; selected segment raised.",
+      "html": "<div class=\"ds-seg\"><button class=\"ds-seg-o\" aria-pressed=\"true\">Check-in</button><button class=\"ds-seg-o\" aria-pressed=\"false\">Roster</button></div>",
+      "css": ".ds-seg{display:inline-flex;padding:2px;border-radius:9px;background:var(--color-surface-2)}.ds-seg-o{min-height:var(--tap-target);min-width:96px;padding:0 var(--space-4);border:0;border-radius:7px;background:transparent;color:var(--color-text);font-family:var(--font-body);font-size:var(--font-size-subhead);font-weight:500;cursor:pointer;transition:background-color var(--dur-short) var(--ease-out)}.ds-seg-o[aria-pressed=true]{background:var(--color-surface);font-weight:600;box-shadow:var(--shadow-control)}.ds-seg-o:focus-visible{outline:3px solid var(--color-focus);outline-offset:2px}"
+    },
+    {
+      "name": "Student Tab Bar",
+      "kind": "nav",
+      "refersTo": "tab-bar",
+      "description": "Blurred bottom tab bar on student screens.",
+      "html": "<nav class=\"ds-tabs\"><a class=\"ds-tab ds-on\" href=\"#\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\"/></svg><span>My classes</span></a><a class=\"ds-tab\" href=\"#\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 20V10M12 20V4M19 20v-7\"/></svg><span>Overview</span></a></nav>",
+      "css": ".ds-tabs{display:flex;justify-content:center;gap:var(--space-2);background:color-mix(in srgb,var(--color-surface) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:1px solid var(--color-border);font-family:var(--font-body)}.ds-tab{display:grid;justify-items:center;align-content:center;gap:2px;flex:0 1 160px;min-height:var(--tab-bar-height);color:var(--color-text-muted);font-size:11px;font-weight:500;text-decoration:none}.ds-tab svg{width:26px;height:26px}.ds-tab.ds-on{color:var(--color-primary)}.ds-tab:focus-visible{outline:3px solid var(--color-focus);outline-offset:-3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Class Pass",
+    "overview": "Mahub looks like a stock iPhone app: Apple Wallet for the classes, Settings for everything else. Each class is a coloured pass, and that colour follows the class to every screen: the instructor's home, the live session header, the projector band, the student's result and the colour dots in lists. Everything around the passes is plain: the device's own font, grouped inset lists on a grey ground, and blue as the only interactive colour.\n\nThe screens are quiet and dense enough to scan quickly. There's one main action per screen and one moment of motion (the result pass sliding up). Light and dark follow the device, and the projector is always dark. The CSP forbids `style=\"\"` attributes and external assets, so every visual decision is a class in `src/ui/ui.css` reading a token from `src/ui/tokens.css`.",
+    "keyCharacteristics": [
+      "One Wallet-pass colour per class, with white text, used for identity only.",
+      "Status appears only as small tinted badges (and the two tinted stat numbers).",
+      "The system font, iOS text sizes, and tabular digits for every number.",
+      "Grouped inset lists (12px) on a grey ground; passes are rounder (20px).",
+      "Flat surfaces. Soft shadows only on passes, dialogs and the selected segment."
+    ],
+    "rules": [
+      {
+        "name": "The Colour Is Identity Rule",
+        "body": "A class colour says *which class*, never *how it went*. No green pass (green means present), and no red or amber pass meaning \"problem\". Status always goes in a Badge.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Tint Rule",
+        "body": "Blue is the only colour for things you can tap. Don't introduce a second accent.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Digits Rule",
+        "body": "Every student number, time, count and rate uses tabular digits (`.mono`, or `font-variant-numeric: tabular-nums`), never the monospace font.",
+        "section": "typography"
+      },
+      {
+        "name": "The Uppercase Belongs To iOS Rule",
+        "body": "Uppercase appears in exactly two places: grouped-list section headers and pass field labels. Don't add uppercase labels above titles anywhere else.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Lists Rule",
+        "body": "Lists, cards, stat tiles and the session board have no shadow. If it isn't a pass, a dialog or a selected segment, it's flat.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** give a class its `pass-<colour>` class once on the container and let `--pass-bg` colour everything inside it.",
+      "**Do** show attendance status with `Badge` (success / danger / warning / neutral) and nothing else.",
+      "**Do** put tabular digits on every number (`.mono`).",
+      "**Do** keep every tap target at least 44px (`--tap-target`).",
+      "**Do** use one primary button per screen. On phones, make it `button-block`.",
+      "**Do** take every colour, size and space from `tokens.css`, and style with classes in `ui.css`. The CSP blocks `style=\"\"`.",
+      "**Do** check new colour pairs for 4.5:1 contrast in both light and dark.",
+      "**Do** keep the QR on pure white with a wide quiet zone, in both modes."
+    ],
+    "donts": [
+      "**Don't** use a class colour to mean status, and don't add a green pass colour.",
+      "**Don't** add a second accent colour, web fonts, or any asset from another origin.",
+      "**Don't** put shadows on lists, cards or stat tiles, or use blur anywhere except the app bar and tab bar.",
+      "**Don't** add animations beyond `pass-enter`. Other changes are 150ms state transitions, and reduced motion must be respected.",
+      "**Don't** add a light/dark toggle (the app follows the device), and don't let the projector go light.",
+      "**Don't** add uppercase labels above titles. Uppercase is only for list section headers and pass field labels.",
+      "**Don't** use emoji or icon fonts for icons. Add a 24×24 stroked SVG to `icons.tsx`."
+    ]
+  }
+}

@@ -1,32 +1,55 @@
-import { Link } from 'react-router';
-import { fakeSections, type FakeSection } from '../fakeData';
-import { Button, Card, Table, type Column } from '../ui';
+import { useState } from 'react';
+import { fakeInstructor, fakeSections, fakeSession } from '../fakeData';
+import { Badge, ButtonRoute, Pass } from '../ui';
 
-const columns: Column<FakeSection>[] = [
-  { header: 'Course', cell: (s) => `${s.course} ${s.name}` },
-  { header: 'Section', cell: (s) => s.sectionNo },
-  { header: 'Enrolled', cell: (s) => s.enrolled },
-  {
-    header: '',
-    // Disabled until the open/close endpoints exist (task P3).
-    cell: () => (
-      <Button disabled title="Arrives with task P3">
-        Open check-in
-      </Button>
-    ),
-  },
-];
+function greeting(hour: number) {
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
+// The instructor's home after sign-in: one pass per section they teach.
+// The only thing to do here is start (or go back to) a check-in.
 export function InstructorPage() {
+  // Worked out once when the page opens.
+  const [hello] = useState(() => greeting(new Date().getHours()));
+
   return (
     <>
-      <Card title="My sections">
-        <p className="muted">Fake data for now.</p>
-        <Table columns={columns} rows={fakeSections} rowKey={(s) => s.id} />
-      </Card>
-      <p>
-        Preview: <Link to="/projector/demo">projector screen</Link> · <Link to="/roster/demo">live roster</Link>
-      </p>
+      <header className="page-head">
+        <h1 className="large-title">
+          {hello}, {fakeInstructor.name}
+        </h1>
+        <p className="page-lede">Choose a class to start check-in.</p>
+      </header>
+
+      <div className="pass-grid">
+        {fakeSections.map((s) => {
+          // Sample data: one section already has an open check-in window.
+          const live = fakeSession.sectionId === s.id;
+          return (
+            <Pass
+              key={s.id}
+              color={s.color}
+              code={s.course}
+              corner={live ? <Badge tone="success">Live</Badge> : undefined}
+              title={s.name}
+              fields={[
+                { label: 'Section', value: s.sectionNo, mono: true },
+                { label: 'Students', value: s.enrolled, mono: true },
+                { label: 'Room', value: s.room ?? '—' },
+              ]}
+            >
+              {/* Opening a real window arrives with the class-session API (task P3). */}
+              <ButtonRoute to={`/session/${live ? fakeSession.id : `new-${s.id}`}`} className="button-on-pass">
+                {live ? 'Return to check-in' : 'Start check-in'}
+              </ButtonRoute>
+            </Pass>
+          );
+        })}
+      </div>
+
+      <p className="sample-note">Sample data until sign-in and the class-session API are ready.</p>
     </>
   );
 }
