@@ -7,7 +7,7 @@
 The original plan used WebAuthn passkeys to stop one phone checking in for several students. That's the most complex part of the plan, and it has gaps: passkeys sync between devices, a friend can register a new one, and lost phones need a recovery process.
 
 ## Decision
-Identity relies on the university Google account. We assume students won't share their Google passwords. We don't build device binding.
+Identity relies on the user's Google account (ADR 0007). We assume students won't share their Google passwords. We don't build device binding.
 
 ## Consequences
 - A large reduction in scope (no credential table, registration flow or recovery process).
