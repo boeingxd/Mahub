@@ -86,7 +86,7 @@ Everything runs locally with Docker Compose; the same setup is deployed to a VPS
 ### Stack
 | Area | Choice | ADR |
 |---|---|---|
-| Database | PostgreSQL 16 + PostGIS (Docker image `postgis/postgis:16-3.4`) | — |
+| Database | PostgreSQL 16 + PostGIS (Docker image `imresamu/postgis:16-3.5`, which has Apple Silicon builds) | — |
 | Migrations | `dbmate` (plain SQL files with `up` and `down` sections) | 0001 |
 | DB tests | pgTAP (SQL tests for constraints and RLS) | — |
 | API | Node 22 + TypeScript + Fastify, zod for validation, `pg` for SQL, vitest for tests | 0001 |
