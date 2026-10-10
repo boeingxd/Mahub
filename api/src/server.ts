@@ -1,10 +1,25 @@
 import { buildApp } from './app.js';
+import { createGoogleAuth } from './auth/google.js';
+import { createUserStore } from './auth/userStore.js';
 import { loadConfig } from './config.js';
 import { createPool } from './db.js';
 
 const config = loadConfig();
 const pool = createPool(config.DATABASE_URL);
-const app = buildApp({ db: pool, logLevel: config.LOG_LEVEL, trustProxy: config.TRUST_PROXY });
+const app = buildApp({
+  db: pool,
+  logLevel: config.LOG_LEVEL,
+  trustProxy: config.TRUST_PROXY,
+  auth: {
+    google: createGoogleAuth({
+      clientId: config.GOOGLE_CLIENT_ID,
+      clientSecret: config.GOOGLE_CLIENT_SECRET,
+      redirectUri: config.GOOGLE_REDIRECT_URI,
+    }),
+    users: createUserStore(pool),
+    sessionKey: Buffer.from(config.SESSION_KEY, 'hex'),
+  },
+});
 
 // Without this, an idle pooled connection that dies (e.g. the DB restarts)
 // emits an 'error' event that would crash the whole process.

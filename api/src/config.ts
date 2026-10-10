@@ -13,6 +13,19 @@ const ConfigSchema = z.object({
   // as a comma-separated list of IPs or ranges, e.g. "172.28.1.0/24".
   // Empty = trust nobody, which is right for `npm run dev` with no proxy.
   TRUST_PROXY: z.string().default(''),
+
+  // Google sign-in (task Y1). From Google Cloud console > APIs & Services >
+  // Credentials > OAuth client ID (type "Web application").
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  // Must be listed under "Authorized redirect URIs" in that client, exactly.
+  GOOGLE_REDIRECT_URI: z.url(),
+  // Encrypts the session cookie: 32 random bytes written as 64 hex characters.
+  // Generate one with: node -e "console.log(crypto.randomBytes(32).toString('hex'))"
+  SESSION_KEY: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/, 'must be 64 hex characters (32 bytes)')
+    .refine((k) => !/^0+$/.test(k), 'must be random, not all zeros'),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
