@@ -21,7 +21,7 @@ export function buildApp({ db, logLevel = 'info', trustProxy = '', auth }: AppOp
       serializers: {
         // Fastify's default request log includes the client IP address.
         // ADR 0006: we never store raw IPs, so log only these fields.
-        req: (req) => ({ method: req.method, url: req.url }),
+        req: (req) => ({ method: req.method, url: req.url.split('?')[0] }),
       },
     },
     // Behind Caddy, every request seems to come from Caddy's address. Caddy
