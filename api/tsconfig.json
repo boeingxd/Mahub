@@ -1,5 +1,5 @@
 {
-  // Used by your editor and `npm run lint` (type-check only, covers src and tests).
+  // Used by your editor and `npm run lint` (type-check only, covers src, tests and scripts).
   "compilerOptions": {
     "target": "es2023",
     "module": "nodenext",
@@ -12,5 +12,5 @@
     "rootDir": ".",
     "types": ["node"]
   },
-  "include": ["src", "test"]
+  "include": ["src", "test", "scripts", "vitest.config.ts"]
 }
