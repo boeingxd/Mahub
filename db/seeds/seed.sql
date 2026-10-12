@@ -1,4 +1,4 @@
--- Development seed data (fake people, real-ish places). Safe to run more than once.
+﻿-- Development seed data (fake people, real-ish places). Safe to run more than once.
 -- Run (after `dbmate up`):
 --   docker compose exec -T db psql -U postgres -d mahub -v ON_ERROR_STOP=1 < db/seeds/seed.sql
 -- PowerShell: Get-Content db/seeds/seed.sql -Raw | docker compose exec -T db psql -U postgres -d mahub -v ON_ERROR_STOP=1
@@ -23,7 +23,7 @@ TRUNCATE seed_students;
 INSERT INTO seed_students VALUES
     ('6722771886', 'Pinya (postscrippt)'),
     ('6722781026', 'Yayikast'),
-    ('6722782164', 'Team member 3');
+    ('6722782164', 'Boeing (Boeingxd)');
 INSERT INTO seed_students
 SELECT '67227800' || lpad(n::text, 2, '0'), 'Student ' || n FROM generate_series(1, 27) AS n;
 
