@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
+import { registerAuth, type AuthOptions } from './auth/routes.js';
 import type { Queryable } from './db.js';
 
 export interface AppOptions {
@@ -7,18 +8,20 @@ export interface AppOptions {
   logLevel?: string;
   // Comma-separated proxy IPs/ranges to trust for X-Forwarded-For ('' = none).
   trustProxy?: string;
+  // Google login + session cookie. Left out by tests that don't need it.
+  auth?: AuthOptions;
 }
 
 // Builds the Fastify app without starting it. server.ts calls listen();
 // tests call app.inject() to send fake requests without opening a port.
-export function buildApp({ db, logLevel = 'info', trustProxy = '' }: AppOptions): FastifyInstance {
+export function buildApp({ db, logLevel = 'info', trustProxy = '', auth }: AppOptions): FastifyInstance {
   const app = Fastify({
     logger: {
       level: logLevel,
       serializers: {
         // Fastify's default request log includes the client IP address.
         // ADR 0006: we never store raw IPs, so log only these fields.
-        req: (req) => ({ method: req.method, url: req.url }),
+        req: (req) => ({ method: req.method, url: req.url.split('?')[0] }),
       },
     },
     // Behind Caddy, every request seems to come from Caddy's address. Caddy
@@ -53,6 +56,19 @@ export function buildApp({ db, logLevel = 'info', trustProxy = '' }: AppOptions)
       request.log.error({ err }, 'readiness check failed: database unreachable');
       return reply.code(503).send({ status: 'unavailable' });
     }
+  });
+
+  if (auth) {
+    app.register((scope) => registerAuth(scope, auth));
+  }
+
+  // Fastify's default error reply includes err.message, which can leak SQL,
+  // table names or library internals. Log the real error for us and send the
+  // client only an error code.
+  app.setErrorHandler((err: { statusCode?: number }, request, reply) => {
+    const status = err.statusCode && err.statusCode < 500 ? err.statusCode : 500;
+    if (status === 500) request.log.error({ err }, 'unhandled error');
+    return reply.code(status).send({ error: status === 500 ? 'INTERNAL' : 'BAD_REQUEST' });
   });
 
   return app;
