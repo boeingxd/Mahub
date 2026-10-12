@@ -16,16 +16,16 @@ INSERT INTO api.user_roles (user_id, role, granted_by) VALUES
     ('00000000-0000-0000-0000-0000000000b2', 'instructor', '00000000-0000-0000-0000-0000000000a1')
 ON CONFLICT DO NOTHING;
 
--- 30 students. The first two are real team accounts so they can sign in during testing;
--- the other 28 are fake (6722780001 ... 6722780028).
--- TODO: add the third team member's real SIIT email as another student.
+-- 30 students. The first three are real team accounts so they can sign in during testing;
+-- the other 27 are fake (6722780001 ... 6722780027).
 CREATE TEMP TABLE IF NOT EXISTS seed_students (student_no text, full_name text);
 TRUNCATE seed_students;
 INSERT INTO seed_students VALUES
     ('6722771886', 'Pinya (postscrippt)'),
-    ('6722781026', 'Yayikast');
+    ('6722781026', 'Yayikast'),
+    ('6722782164', 'Team member 3');
 INSERT INTO seed_students
-SELECT '67227800' || lpad(n::text, 2, '0'), 'Student ' || n FROM generate_series(1, 28) AS n;
+SELECT '67227800' || lpad(n::text, 2, '0'), 'Student ' || n FROM generate_series(1, 27) AS n;
 
 INSERT INTO api.users (id, email, full_name)
 SELECT gen_random_uuid(), student_no || '@g.siit.tu.ac.th', full_name FROM seed_students
