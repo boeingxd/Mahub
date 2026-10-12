@@ -128,7 +128,11 @@ cp .env.example .env     # then edit the password
 docker compose up -d     # start Postgres + PostGIS
 docker compose ps        # wait until db shows "healthy"
 dbmate create            # create the "mahub" database
+dbmate up                # create the tables
+docker compose exec -T db psql -U postgres -d mahub -v ON_ERROR_STOP=1 < db/seeds/seed.sql   # fake data (safe to repeat)
 ```
+
+The seed adds 2 courses, 3 sections, 2 rooms, 1 admin, 2 instructors and 30 students. The table diagram is in [docs/ERD.md](docs/ERD.md).
 
 Connect to the database:
 
