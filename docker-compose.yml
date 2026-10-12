@@ -58,6 +58,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_REDIRECT_URI: ${DOCKER_GOOGLE_REDIRECT_URI:-https://localhost/api/auth/callback}
       SESSION_KEY: ${SESSION_KEY}
+      QR_SECRET: ${QR_SECRET}
     depends_on:
       db:
         condition: service_healthy

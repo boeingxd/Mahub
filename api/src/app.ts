@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { registerAuth, type AuthOptions } from './auth/routes.js';
+import { registerCheckin, type CheckinOptions } from './checkin/routes.js';
 import type { Queryable } from './db.js';
 
 export interface AppOptions {
@@ -10,11 +11,13 @@ export interface AppOptions {
   trustProxy?: string;
   // Google login + session cookie. Left out by tests that don't need it.
   auth?: AuthOptions;
+  // The rotating QR and the scan link (task Y3). Needs `auth` (its cookies).
+  checkin?: CheckinOptions;
 }
 
 // Builds the Fastify app without starting it. server.ts calls listen();
 // tests call app.inject() to send fake requests without opening a port.
-export function buildApp({ db, logLevel = 'info', trustProxy = '', auth }: AppOptions): FastifyInstance {
+export function buildApp({ db, logLevel = 'info', trustProxy = '', auth, checkin }: AppOptions): FastifyInstance {
   const app = Fastify({
     logger: {
       level: logLevel,
@@ -59,7 +62,10 @@ export function buildApp({ db, logLevel = 'info', trustProxy = '', auth }: AppOp
   });
 
   if (auth) {
-    app.register((scope) => registerAuth(scope, auth));
+    app.register(async (scope) => {
+      await registerAuth(scope, auth);
+      if (checkin) await registerCheckin(scope, checkin);
+    });
   }
 
   // Fastify's default error reply includes err.message, which can leak SQL,

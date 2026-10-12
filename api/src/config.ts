@@ -24,6 +24,9 @@ const ConfigSchema = z.object({
   GOOGLE_REDIRECT_URI: z.url(),
   // Encrypts the session cookie: 32 random bytes written as 64 hex characters.
   // Generate one with: node -e "console.log(crypto.randomBytes(32).toString('hex'))"
+  // Signs the rotating QR tokens (task Y3). Anyone with it could make valid
+  // QR codes. Generate one with: node -e "console.log(crypto.randomBytes(32).toString('hex'))"
+  QR_SECRET: z.string().min(32, 'must be at least 32 random characters'),
   SESSION_KEY: z
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, 'must be 64 hex characters (32 bytes)')
