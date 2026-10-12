@@ -2,10 +2,10 @@ import { buildApp } from './app.js';
 import { createGoogleAuth } from './auth/google.js';
 import { createUserStore } from './auth/userStore.js';
 import { loadConfig } from './config.js';
-import { createPool } from './db.js';
+import { assertRlsApplies, createPool } from './db.js';
 
 const config = loadConfig();
-const pool = createPool(config.DATABASE_URL);
+const pool = createPool(config.API_DATABASE_URL);
 const app = buildApp({
   db: pool,
   logLevel: config.LOG_LEVEL,
@@ -43,6 +43,8 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
 }
 
 try {
+  // Refuse to start as a superuser: row-level security wouldn't apply.
+  await assertRlsApplies(pool);
   await app.listen({ host: config.API_HOST, port: config.API_PORT });
 } catch (err) {
   app.log.fatal({ err }, 'failed to start');
