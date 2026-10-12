@@ -64,7 +64,8 @@ services:
       - backend
     healthcheck:
       # "Healthy" means ready to serve: the API answers AND can reach the DB.
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/readyz || exit 1"]
+      # The API image (node:22-slim) has no wget, so use Node's built-in fetch.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 10s
       timeout: 3s
       retries: 5

@@ -2,7 +2,9 @@
 # the small image that actually runs, with only production dependencies.
 
 # --- Stage 1: build ---
-FROM node:22-alpine AS build
+# Debian slim, not Alpine: @fastify/secure-session needs sodium-native,
+# which ships prebuilt binaries for glibc Linux but not for Alpine (musl).
+FROM node:22-slim AS build
 WORKDIR /app
 # Copy the package files first: Docker caches this layer, so `npm ci` only
 # re-runs when dependencies change, not on every code edit.
@@ -13,7 +15,7 @@ COPY src ./src
 RUN npm run build
 
 # --- Stage 2: run ---
-FROM node:22-alpine
+FROM node:22-slim
 ENV NODE_ENV=production
 WORKDIR /app
 COPY package.json package-lock.json ./
