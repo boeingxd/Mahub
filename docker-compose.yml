@@ -41,7 +41,10 @@ services:
     environment:
       # Inside Compose, containers reach each other by service name, so the
       # host is "db", not "localhost" (localhost would be the api container itself).
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/mahub?sslmode=disable
+      # The API logs in as mahub_api (member of app_rw), never as the postgres
+      # superuser, so row-level security applies. Create it once with
+      # `npm run db:app-user` in api/ (task Y2).
+      API_DATABASE_URL: postgres://mahub_api:${APP_DB_PASSWORD}@db:5432/mahub?sslmode=disable
       # Listen on all interfaces inside the container, so Caddy can reach it.
       API_HOST: 0.0.0.0
       API_PORT: 3000

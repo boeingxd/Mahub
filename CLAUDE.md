@@ -12,6 +12,8 @@ So far: Postgres, the API skeleton (`/healthz`, `/readyz`), Caddy, and the web a
 
 - Database: `docker compose up -d db`, `dbmate create`, `dbmate up`. Connect with `docker compose exec db psql -U postgres -d mahub`.
 - API (run in `api/`): `npm run dev` (reads `../.env`), `npm test` (vitest), `npm run lint` (`tsc --noEmit`), `npm run build`.
+- The API logs in as `mahub_api` (member of `app_rw`, under row-level security), never as `postgres`: `API_DATABASE_URL` in `.env`, created once with `npm run db:app-user` after `dbmate up`. It refuses to start as a superuser. Queries that need a user go through `withUser(pool, userId, fn)` in `api/src/db.ts`; the rules are in `docs/PERMISSIONS.md`.
+- `npm test` also runs the database tests in `api/test/db/`: they rebuild a separate `mahub_test` database from the migrations and seed (needs `DATABASE_URL` and the `db` container; skipped with a warning when `DATABASE_URL` is unset).
 - Full stack in Docker: `docker compose up -d --build`, then `curl -k https://localhost/api/readyz`. The API isn't published; `infra/caddy/Caddyfile` strips `/api` before forwarding.
 - Web (run in `web/`): `npm run dev` (http://127.0.0.1:5173, proxies `/api` to the stack), `npm run build`, `npm run lint` (oxlint). The Caddy image (`infra/caddy/Dockerfile`) builds `web/` into `/srv`, so rebuild it after web changes: `docker compose up -d --build caddy`.
 - Phone testing: `docker compose --profile tunnel up -d tunnel`, then (after ~10 s) `docker compose logs tunnel | grep "trycloudflare.com " | tail -1` for the public address (it changes on every restart; stop it with `docker compose stop tunnel`). See `docs/NETWORK.md`.

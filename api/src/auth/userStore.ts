@@ -1,4 +1,5 @@
 import type pg from 'pg';
+import { withUser } from '../db.js';
 import type { Profile, StoredUser, UserStore } from './loginPolicy.js';
 
 // The real UserStore, backed by the api.users / api.students / api.user_roles
@@ -7,87 +8,58 @@ import type { Profile, StoredUser, UserStore } from './loginPolicy.js';
 // Every value goes in as a $1, $2... parameter, never glued into the SQL
 // string, so a strange email or name can't change the query (SQL injection).
 //
-// TODO(Y2): once RLS is on, these queries run before we know who the user is,
-// so they will need a SECURITY DEFINER login function in `private`.
+// Row-level security (task Y2) hides every row until we know who is asking,
+// and during sign-in we don't know yet. So the lookups below call small
+// SECURITY DEFINER functions in the `private` schema that do exactly what the
+// login policy needs (see db/migrations/*_rls.sql). Once we know the user,
+// getProfile runs as that user, under the normal RLS rules.
 export function createUserStore(pool: Pick<pg.Pool, 'query' | 'connect'>): UserStore {
-  const selectUser = 'SELECT id, email, google_sub AS "googleSub" FROM api.users';
+  const columns = 'id, email, google_sub AS "googleSub"';
 
   return {
     async findByGoogleSub(sub) {
-      const { rows } = await pool.query<StoredUser>(`${selectUser} WHERE google_sub = $1`, [sub]);
+      const { rows } = await pool.query<StoredUser>(`SELECT ${columns} FROM private.login_user_by_sub($1)`, [sub]);
       return rows[0] ?? null;
     },
 
     async findByEmail(email) {
-      // email is citext, so this comparison ignores upper/lower case.
-      const { rows } = await pool.query<StoredUser>(`${selectUser} WHERE email = $1`, [email]);
+      const { rows } = await pool.query<StoredUser>(`SELECT ${columns} FROM private.login_user_by_email($1)`, [email]);
       return rows[0] ?? null;
     },
 
     async linkGoogleSub(userId, sub) {
-      // "AND google_sub IS NULL": never overwrite a sub that is already set.
-      await pool.query('UPDATE api.users SET google_sub = $2 WHERE id = $1 AND google_sub IS NULL', [userId, sub]);
+      // The function never overwrites a sub that is already set.
+      await pool.query('SELECT private.login_link_google_sub($1, $2)', [userId, sub]);
     },
 
     async upsertStudent({ email, sub, fullName, studentNo }) {
-      // Three inserts that must all happen or none: a transaction. We borrow
-      // one connection from the pool because BEGIN and COMMIT must run on the
-      // same connection as the statements between them.
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-
-        // The CSV import may already have created this user (without a sub).
-        // ON CONFLICT turns "insert" into "insert, or update the existing row".
-        // COALESCE keeps an existing sub, so we can detect a mismatch below.
-        const { rows } = await client.query<StoredUser>(
-          `INSERT INTO api.users (email, google_sub, full_name)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (email) DO UPDATE
-             SET google_sub = COALESCE(api.users.google_sub, EXCLUDED.google_sub)
-           RETURNING id, email, google_sub AS "googleSub"`,
-          [email, sub, fullName],
-        );
-        const user = rows[0];
-        if (!user || user.googleSub !== sub) {
-          // This email is already linked to a different Google account. Refuse.
-          await client.query('ROLLBACK');
-          return null;
-        }
-
-        await client.query(
-          'INSERT INTO api.students (user_id, student_no) VALUES ($1, $2) ON CONFLICT (user_id) DO NOTHING',
-          [user.id, studentNo],
-        );
-        // granted_by is NULL: the login policy granted it, not an admin.
-        await client.query(
-          `INSERT INTO api.user_roles (user_id, role) VALUES ($1, 'student') ON CONFLICT DO NOTHING`,
-          [user.id],
-        );
-
-        await client.query('COMMIT');
-        return user;
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release(); // give the connection back to the pool
-      }
+      // One function call = one statement, so its three inserts (users,
+      // students, user_roles) happen together or not at all.
+      const { rows } = await pool.query<StoredUser>(
+        `SELECT ${columns} FROM private.login_upsert_student($1, $2, $3, $4)`,
+        [email, sub, fullName, studentNo],
+      );
+      const user = rows[0];
+      // A different sub means this email belongs to another Google account. Refuse.
+      return user && user.googleSub === sub ? user : null;
     },
 
     async getProfile(userId) {
-      // array_agg collects all the user's roles into one array, e.g. {student}.
-      // FILTER drops the NULL that the LEFT JOIN gives a user with no roles.
-      const { rows } = await pool.query<Profile>(
-        `SELECT u.id, u.email, u.full_name AS "fullName",
-                COALESCE(array_agg(r.role::text ORDER BY r.role) FILTER (WHERE r.role IS NOT NULL), '{}') AS roles
-         FROM api.users u
-         LEFT JOIN api.user_roles r ON r.user_id = u.id
-         WHERE u.id = $1
-         GROUP BY u.id`,
-        [userId],
-      );
-      return rows[0] ?? null;
+      // Runs as the user: RLS lets them read their own users row and roles.
+      return withUser(pool, userId, async (client) => {
+        // array_agg collects all the user's roles into one array, e.g. {student}.
+        // FILTER drops the NULL that the LEFT JOIN gives a user with no roles.
+        const { rows } = await client.query<Profile>(
+          `SELECT u.id, u.email, u.full_name AS "fullName",
+                  COALESCE(array_agg(r.role::text ORDER BY r.role) FILTER (WHERE r.role IS NOT NULL), '{}') AS roles
+           FROM api.users u
+           LEFT JOIN api.user_roles r ON r.user_id = u.id
+           WHERE u.id = $1
+           GROUP BY u.id`,
+          [userId],
+        );
+        return rows[0] ?? null;
+      });
     },
   };
 }
