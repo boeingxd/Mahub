@@ -20,7 +20,7 @@ The API refuses to start if its database user is a superuser or has BYPASSRLS (`
 
 Every API request that touches the database runs inside `withUser(pool, userId, fn)` (`api/src/db.ts`). It starts a transaction and sets `app.user_id`, which every policy reads through `private.current_user_id()`. **With no user id, every table looks empty.**
 
-The one exception is sign-in (Y1), where we don't know the user yet: it calls the `private.login_*` functions, which do only what the login policy (ADR 0007) needs.
+The exceptions are the moments before we know the user: sign-in (Y1) calls the `private.login_*` functions, which do only what the login policy (ADR 0007) needs, and a QR scan (Y3) calls `private.class_session_is_open()`, which only answers "is this check-in window open?".
 
 ## Row-level security, table by table
 
