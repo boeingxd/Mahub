@@ -1,4 +1,4 @@
-import secureSession from '@fastify/secure-session';
+import secureSession, { type Session } from '@fastify/secure-session';
 import type { FastifyInstance } from 'fastify';
 import type { GoogleAuth, LoginChecks } from './google.js';
 import { applyLoginPolicy, homePathFor, type UserStore } from './loginPolicy.js';
@@ -14,6 +14,18 @@ declare module '@fastify/secure-session' {
   }
 }
 
+// A second encrypted cookie for the QR scan (task Y3): it remembers which
+// check-in window the student scanned while they sign in with Google.
+export interface ScanData {
+  classSessionId: string;
+  scannedAt: number; // milliseconds since 1970
+}
+declare module 'fastify' {
+  interface FastifyRequest {
+    scan: Session<ScanData>;
+  }
+}
+
 export interface AuthOptions {
   google: GoogleAuth;
   users: UserStore;
@@ -22,24 +34,37 @@ export interface AuthOptions {
 }
 
 const EIGHT_HOURS = 8 * 60 * 60; // seconds
+export const SCAN_SECONDS = 90;
 
 export async function registerAuth(app: FastifyInstance, { google, users, sessionKey }: AuthOptions) {
-  await app.register(secureSession, {
-    key: sessionKey,
-    cookieName: 'mahub_session',
-    // The encrypted contents expire after 8 h even if someone keeps the cookie.
-    expiry: EIGHT_HOURS,
-    cookie: {
-      path: '/',
-      httpOnly: true, // page JavaScript can't read it, so an XSS bug can't steal it
-      secure: true, // only sent over HTTPS (browsers make an exception for localhost)
-      // Sent when you click a link to our site (needed for Google's redirect
-      // back to /auth/callback), but not on cross-site POSTs. That blocks
-      // another website from silently logging you out or acting as you.
-      sameSite: 'lax',
-      maxAge: EIGHT_HOURS,
+  const cookie = {
+    path: '/',
+    httpOnly: true, // page JavaScript can't read it, so an XSS bug can't steal it
+    secure: true, // only sent over HTTPS (browsers make an exception for localhost)
+    // Sent when you click a link to our site (needed for Google's redirect
+    // back to /auth/callback), but not on cross-site POSTs. That blocks
+    // another website from silently logging you out or acting as you.
+    sameSite: 'lax' as const,
+  };
+  await app.register(secureSession, [
+    {
+      sessionName: 'session',
+      key: sessionKey,
+      cookieName: 'mahub_session',
+      // The encrypted contents expire after 8 h even if someone keeps the cookie.
+      expiry: EIGHT_HOURS,
+      cookie: { ...cookie, maxAge: EIGHT_HOURS },
     },
-  });
+    {
+      sessionName: 'scan',
+      key: sessionKey,
+      cookieName: 'mahub_scan',
+      // A scan is only good for 90 s: long enough to sign in, short enough
+      // that a copied cookie is about as useless as a forwarded QR photo.
+      expiry: SCAN_SECONDS,
+      cookie: { ...cookie, maxAge: SCAN_SECONDS },
+    },
+  ]);
 
   // Step 1: the "Sign in with Google" button links here.
   app.get<{ Querystring: { returnTo?: string } }>('/auth/login', async (request, reply) => {

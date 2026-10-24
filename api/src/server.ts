@@ -1,6 +1,7 @@
 import { buildApp } from './app.js';
 import { createGoogleAuth } from './auth/google.js';
 import { createUserStore } from './auth/userStore.js';
+import { createQrStore } from './checkin/qrStore.js';
 import { loadConfig } from './config.js';
 import { assertRlsApplies, createPool } from './db.js';
 
@@ -19,6 +20,7 @@ const app = buildApp({
     users: createUserStore(pool),
     sessionKey: Buffer.from(config.SESSION_KEY, 'hex'),
   },
+  checkin: { qrSecret: config.QR_SECRET, store: createQrStore(pool) },
 });
 
 // Without this, an idle pooled connection that dies (e.g. the DB restarts)
