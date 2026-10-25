@@ -37,11 +37,11 @@ The exceptions are the moments before we know the user: sign-in (Y1) calls the `
 | `class_sessions` | the section's instructor; its enrolled students | the section's instructor opens it (`opened_by` = themselves) and closes it (P3) |
 | `attendance` | your own; the section's instructor | a student adds **only themselves**, `method = 'qr'`, `status = 'present'`, to an **open** window of their section (Y4). The instructor adds or changes `method = 'manual'` marks signed with `recorded_by` = themselves (P4) |
 | `checkin_attempts` | your own; the section's instructor; admins | you add your own; nobody changes them |
-| `audit.events` | `auditor` only | triggers only (P5); nobody can UPDATE or DELETE |
+| `audit.events` | `auditor` only | written by `audit.log_change()` triggers on `user_roles`, `attendance`, `enrollments`; nobody can UPDATE, DELETE or TRUNCATE |
 
 ## Notes for other tasks
 
 - **P3 (open/close):** run the INSERT and UPDATE on `class_sessions` inside `withUser(...)` as the instructor. Copy `location` and `radius_m` from `rooms` (anyone signed in may read rooms).
 - **Views (P4, done):** `api.v_session_roster` and `api.v_section_attendance_rate` are created `WITH (security_invoker = true)`, and `reportsStore.test.ts` fails if that is removed. Otherwise a view runs with its owner's rights and **skips RLS**, so a student could read everyone's attendance through it. Any new view needs the same option plus its own `GRANT SELECT`. The instructor's manual mark is an INSERT ... ON CONFLICT DO UPDATE through the existing `attendance_manual_mark` / `attendance_manual_change` policies.
-- **Clearing a manual mark** means deleting an attendance row, and `app_rw` has no DELETE. Not built in P4: it would need a DELETE grant and a policy for the section's instructor (and P5's audit trigger should see it first). Ask Yayikast.
+- **Clearing a manual mark** means deleting an attendance row, and `app_rw` has no DELETE. Not built in P4: it would need a DELETE grant and a policy for the section's instructor (the audit trigger will log the delete). Ask Yayikast.
 - **New tables:** RLS is off by default. Every new `api` table needs `ENABLE ROW LEVEL SECURITY`, policies, and a GRANT to `app_rw`/`app_ro` in the same migration.
