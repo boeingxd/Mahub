@@ -85,17 +85,18 @@ The old app worked, but it had real problems: a student could make themselves an
 
 ## Where the project is
 
-**Demo day: Friday 23 October.** The plan is 2 weeks of building plus 1 buffer week.
+The plan was 2 weeks of building plus 1 buffer week, with the demo on Friday 23 October. The up-to-date list is in [`docs/STATUS.md`](docs/STATUS.md).
 
 | Done (merged) | Not built yet |
 |---|---|
-| The database running in Docker | Google sign-in |
-| A small server (the API) with health checks | The database tables |
-| Caddy, the secure front door (HTTPS) | Generating and checking the QR codes |
-| All the screens for both flows, with sample data | The check-in logic itself |
-| | The live roster, and saving manual marks |
+| The database, with its tables, security rules and sample data | The student's check-in itself (checking location, saving attendance) |
+| Google sign-in | The live roster updating by itself (it refreshes every few seconds for now) |
+| The rotating QR code, and opening and closing a check-in | Limits on how often one person can ask for things |
+| The roster, attendance rates, and marking a student by hand | Automatic tests on every change |
+| Caddy, the secure front door, and the tunnel for phones | |
+| The instructor's screens, connected to the real server | |
 
-Right now the screens work but show made-up data. The work left is connecting them to a real database and a real check-in. The tasks are GitHub issues, one per person per step; see the **Issues** tab, or ask Claude Code *"what should I work on?"*.
+The student screens and the summary page still show made-up data. The tasks are GitHub issues, one per person per task; see `docs/STATUS.md` for who needs what from whom.
 
 ## Who builds what
 

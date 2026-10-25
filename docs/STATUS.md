@@ -1,39 +1,75 @@
 # Status
 
-One page: what is built, what is next, and who needs what from whom. Update it when a task lands (a quick edit in the same PR is enough). The full plan is `PROJECT_PLAN.md`; the task list is the GitHub issues. Last updated: 10 Oct 2026.
+One page: what is built, what is next, and who needs what from whom. Update it when a task lands (a quick edit in the same PR is enough). The full plan is `PROJECT_PLAN.md`; the task list is the GitHub issues. Last updated: 25 Oct 2026.
+
+The plan's demo date was Fri 23 Oct. Whether that moved is not written down anywhere: **check with the team and put the real date here.**
 
 ## Built
 
 | Piece | State | Notes |
 |---|---|---|
-| Database container | Running, **empty** | Postgres 16 + PostGIS in Docker. `db/migrations` has no migrations yet |
-| API | Skeleton only | Answers `/healthz` and `/readyz`. No login, no check-in |
-| Caddy (front door) | Done | HTTPS, security headers, routes to the API and web app |
-| Cloudflare Tunnel | Done | Phones can open the app. See "Phone testing" in `docs/NETWORK.md` |
-| Web screens | Done, **sample data only** | Every instructor and student screen works and looks finished, but the data is made up (`web/src/fakeData.ts`). `/dev` lists every screen |
-| CI and load test | Not started | Task B8 |
+| Database | Done for the instructor side | Migrations: init, tables, row-level security, QR helper, report views. Seed: 2 courses, rooms, instructors, students. ERD done |
+| Login | Done (code) | Google sign-in with the ADR 0007 policy, `GET /api/me`. The API logs in as `mahub_api` under row-level security, never as a superuser |
+| QR | Done (code) | Rotating HMAC QR for the projector and the scan link (`/c/...`) |
+| Check-in windows | Done (code) | `GET /my/sections`, `GET /rooms`, open, close, get one window |
+| Roster, reports, manual marks | Done (code) | `GET /class-sessions/:id/roster`, `GET /sections/:id/report` (JSON or CSV), `POST /class-sessions/:id/attendance` |
+| **Student check-in** | **Not built** | Task Y4 (#35): GPS check and the one transaction |
+| Live roster (WebSocket) | Not built | Task B5 (#36). The web app asks again every 5 seconds meanwhile |
+| Rate limits, real client IP | Not built | Task B7 (#38). The tunnel passes `CF-Connecting-IP` to Caddy, but nothing limits requests yet |
+| CI and load test | Not started | Task B8 (#39) |
+| Audit trigger, indexes | Not built | P5 (#40), P6 (#41) |
+| Caddy, Cloudflare Tunnel | Done | See `docs/NETWORK.md` |
 
-## Next (from the issues)
+## The web app: real or sample?
 
-| Week | Task | Who |
+| Screen | State |
+|---|---|
+| Sign in (`/`) | Real link to `/api/auth/login` |
+| Instructor dashboard (`/instructor`) | **Real** (`/me`, `/my/sections`) |
+| Start check-in (room picker) | **Real** (`/rooms`, opens a window) |
+| Live session (`/session/:id`) | **Real**: QR, count, roster, mark present/excused, end session |
+| Projector (`/projector/:id`) | **Real**: QR and count |
+| Session summary (`/summary/:id`) | Sample data. The roster endpoint it needs exists; CSV export is disabled |
+| Student check-in (`/checkin`) | Location prompt only. Nothing is recorded (needs Y4) |
+| Student classes, overview, class detail | Sample data. No student endpoints exist or are documented yet |
+| `/dev`, `/checkin?preview=done`, `web/src/fakeData.ts` | Temporary. Delete when the screens above are real |
+
+**None of the real screens has been run against the real API yet.** They were checked in a browser against mocked answers only. Also untested: the strict CSP under Caddy, dark mode on the new states, and scanning the QR with a phone.
+
+How the web app talks to the API: `web/src/api.ts` (`useApi`, `apiPost`, friendly text per error code), `web/src/useLiveSession.ts`, `web/src/ui/LiveQr.tsx`, `web/src/ui/ApiStatus.tsx`. New screens should use these (loading, error, done) rather than call `fetch` directly.
+
+## Next (open issues)
+
+| Task | Who | Notes |
 |---|---|---|
-| W1 | A1 API contract (`docs/API.md`) | all three |
-| W1 | P1 first migration, P2 all tables and seeds | postscrippt |
-| W1 | Y1 Google sign-in, Y2 row-level security and first tests | Yayikast |
-| W2 | P3 open/close check-in, P4 roster/rate views and manual mark | postscrippt |
-| W2 | Y3 rotating QR, Y4 check-in transaction | Yayikast |
-| W2 | B5 live roster (WebSocket), B6 connect the screens to the real API | boeingxd |
-| W3 | B7 rate limits and real client IP, B8 CI and k6 | boeingxd |
-| W3 | P5 audit trigger, P6 indexes, Y5 threat model, Y6 regression tests | postscrippt, Yayikast |
-| W3 | A2 demo rehearsal and slides | all three |
+| #24 A1 API contract (`docs/API.md`) | all three | Instructor, rooms and roster parts are written. Missing: auth, QR/scan, check-in, student endpoints |
+| #35 Y4 student check-in | Yayikast | The big missing piece for the demo |
+| #37 B6 screens | boeingxd | Next: wire the summary page; the student screens wait for endpoints |
+| #36 B5 live roster (WebSocket) | boeingxd | Needs check-ins to exist (Y4) to be worth showing |
+| #38 B7 rate limits, #39 B8 CI + k6 | boeingxd | No dependencies, can be done any time |
+| #40, #41 | postscrippt | Audit trigger, indexes + EXPLAIN |
+| #42, #43 | Yayikast | Threat model, regression tests |
+| #44 A2 demo rehearsal + slides | all three | |
 
-Demo: Fri 23 Oct. One buffer week after it.
+After #37 is done, boeingxd plans a **UI revamp** (a new look; see "Decisions"). It is not started.
+
+## Run the real stack on your machine
+
+1. Docker Desktop running.
+2. `.env` from `.env.example`, with: `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (from Yayikast, through a password manager, never chat or git), `SESSION_KEY` and `QR_SECRET` (make your own, the command is in `.env.example`), `APP_DB_PASSWORD` and `API_DATABASE_URL`, and for instructor screens `DEV_INSTRUCTOR_EMAIL` (your real Google email).
+3. `docker compose up -d db`, then `dbmate up` and load the seed (see the README).
+4. In `api/`: `npm run db:app-user`, then `npm run db:dev-instructor`.
+5. `docker compose up -d --build`, open `https://localhost/`. Google must list `https://localhost/api/auth/callback` as a redirect URI.
 
 ## Who needs what from whom
 
-- **From boeingxd to Yayikast:** the tunnel address when you test login together. It changes every time the tunnel restarts, and the Google redirect URI (`https://<address>/api/auth/callback`) must be updated each time.
-- **From boeingxd to everyone:** the screen list in `docs/SCREENS.md` says what data each screen needs. That is boeingxd's half of the API contract (A1).
-- **From postscrippt to boeingxd:** the tables and seed data (P2), so the screens can show real classes, students and attendance. Roster and rate views (P4) feed the roster and summary screens.
-- **From Yayikast to boeingxd:** sign-in (Y1) so the screens know who is signed in and which role they have. The temporary `/dev` page and `?preview=done` get removed then.
-- **From postscrippt and Yayikast to each other:** schema and permission changes need Yayikast's review.
-- **Everyone:** agree the API contract (A1) before building on top of it.
+- **Yayikast → boeingxd:** the Google client ID and secret, the redirect URI `https://localhost/api/auth/callback` listed in the Google console, and (if the Google app is in "Testing" mode) boeingxd's SIIT email as a test user. This blocks running anything for real.
+- **boeingxd → Yayikast:** the tunnel address when you test login on phones. It changes every restart; the Google redirect URI must be updated each time.
+- **Yayikast, postscrippt, boeingxd:** write the student endpoints (my classes, rates, class history) into `docs/API.md`. Nobody owns this yet; the student screens can't be wired until it exists.
+- **postscrippt → boeingxd:** nothing outstanding. Rooms and `db:dev-instructor` landed.
+- **Everyone:** agree the API contract (A1) before building on top of it. Schema or permission changes need Yayikast's review ("Clear mark" needs a DELETE grant on attendance; see `docs/API.md`, "Not decided yet").
+
+## Decisions
+
+- **UI revamp (boeingxd, chosen 25 Oct):** do it **after #37**, so the new look includes the real loading, error and empty states. Method: the `personal-site-workflow` skill, adapted from a personal site to this app (evidence from the product's real users, not style words). Fixed whatever the look: the strict CSP (no inline styles, no outside fonts), routes and component names in `web/src/ui/`, `fakeData` until deleted, 44px tap targets, light and dark, class colours never mean status. The current look is "Wallet passes" (`web/CONCEPT.md`, `web/DESIGN.md`).
+- **No risk flags** and no campus-Wi-Fi check (ADR 0006, `CLAUDE.md`). **No late status, no auto-close** (ADR 0005).

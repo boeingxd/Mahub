@@ -278,7 +278,7 @@ Three components share one look: `Button` for actions, `ButtonLink` for real ser
 - **States:** pressing scales to 0.98 at 85% opacity. Hover darkens primary, and dims secondary and destructive to 96% brightness. Disabled is 40% opacity; busy (`aria-busy`) is 70%.
 
 ### Badges (`Badge tone=…`)
-- Small tinted pills: 22px tall, 13px semibold. The tones are `success` (present, live), `danger` (absent), `warning` (reserved: nothing uses it today) and `neutral` (excused, not checked in).
+- Small tinted pills: 22px tall, 13px semibold. The tones are `success` (present, live), `danger` (absent), `warning` (used once: "Connection degraded" under the QR) and `neutral` (excused, not checked in).
 - On a pass, a badge turns white with the pass colour as text.
 
 ### Grouped lists (`List`, `ListRow`)
