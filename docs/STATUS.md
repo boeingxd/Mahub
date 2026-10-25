@@ -29,7 +29,7 @@ The plan's demo date was Fri 23 Oct. Whether that moved is not written down anyw
 | Start check-in (room picker) | **Real** (`/rooms`, opens a window) |
 | Live session (`/session/:id`) | **Real**: QR, count, roster, mark present/excused, end session |
 | Projector (`/projector/:id`) | **Real**: QR and count |
-| Session summary (`/summary/:id`) | Sample data. The roster endpoint it needs exists; CSV export is disabled |
+| Session summary (`/summary/:id`) | **Real** (`/class-sessions/:id`, `/my/sections`, roster). The CSV button downloads the whole section's report |
 | Student check-in (`/checkin`) | Location prompt only. Nothing is recorded (needs Y4) |
 | Student classes, overview, class detail | Sample data. No student endpoints exist or are documented yet |
 | `/dev`, `/checkin?preview=done`, `web/src/fakeData.ts` | Temporary. Delete when the screens above are real |
@@ -44,7 +44,7 @@ How the web app talks to the API: `web/src/api.ts` (`useApi`, `apiPost`, friendl
 |---|---|---|
 | #24 A1 API contract (`docs/API.md`) | all three | Instructor, rooms and roster parts are written. Missing: auth, QR/scan, check-in, student endpoints |
 | #35 Y4 student check-in | Yayikast | The big missing piece for the demo |
-| #37 B6 screens | boeingxd | Next: wire the summary page; the student screens wait for endpoints |
+| #37 B6 screens | boeingxd | Instructor screens are all wired; the student screens wait for endpoints |
 | #36 B5 live roster (WebSocket) | boeingxd | Needs check-ins to exist (Y4) to be worth showing |
 | #38 B7 rate limits, #39 B8 CI + k6 | boeingxd | No dependencies, can be done any time |
 | #40, #41 | postscrippt | Audit trigger, indexes + EXPLAIN |
