@@ -66,6 +66,10 @@ const store: SectionsStore = {
     if (id === CLOSED) return { ok: true, session: session(CLOSED, true) };
     return { ok: false, error: 'FORBIDDEN' };
   },
+  async listRooms(userId) {
+    calls.push(`listRooms:${userId}`);
+    return [{ id: ROOM, name: 'SIIT Building A, Room 101' }];
+  },
 };
 
 // The same fake Google sign-in the QR tests use: whoever "signs in" next is `nextUser`.
@@ -130,6 +134,7 @@ async function send(method: 'GET' | 'POST', url: string, userId: string | null, 
 describe('every endpoint needs a login', () => {
   for (const [method, url] of [
     ['GET', '/my/sections'],
+    ['GET', '/rooms'],
     ['POST', `/sections/${SECTION}/class-sessions`],
     ['POST', `/class-sessions/${OPEN}/close`],
     ['GET', `/class-sessions/${OPEN}`],
@@ -242,6 +247,41 @@ describe('GET /class-sessions/:id', () => {
   it("someone else can't read it: 403", async () => {
     const res = await send('GET', `/class-sessions/${OPEN}`, OTHER);
     expect(res.statusCode).toBe(403);
+  });
+});
+
+describe('GET /rooms (the room picker)', () => {
+  it('gives any signed-in user the rooms, as just id and name (no coordinates)', async () => {
+    // OTHER is not an instructor of anything: the list is for everyone signed in.
+    for (const who of [INSTRUCTOR, OTHER]) {
+      const res = await send('GET', '/rooms', who);
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual([{ id: ROOM, name: 'SIIT Building A, Room 101' }]);
+    }
+  });
+
+  it('asks the database as the signed-in user', async () => {
+    await send('GET', '/rooms', INSTRUCTOR);
+    expect(calls).toEqual([`listRooms:${INSTRUCTOR}`]);
+  });
+
+  it('sends nothing but id and name, even if the store returned more', async () => {
+    // If someone later widens the store's SELECT, the location must still not
+    // reach the browser: the route picks the two fields itself.
+    const leaky = {
+      ...store,
+      async listRooms() {
+        return [{ id: ROOM, name: 'Room', location: 'POINT(100.6 14.07)', radius_m: 50 }];
+      },
+    } as unknown as SectionsStore;
+    build(leaky);
+    const res = await app!.inject({
+      method: 'GET',
+      url: '/rooms',
+      cookies: { mahub_session: await loginCookie(INSTRUCTOR) },
+    });
+    expect(res.json()).toEqual([{ id: ROOM, name: 'Room' }]);
+    expect(res.body).not.toMatch(/POINT|location|radius/);
   });
 });
 
