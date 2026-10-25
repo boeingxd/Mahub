@@ -143,3 +143,8 @@ export interface QrAnswer {
 
 // The first of several answers that isn't ready yet (still loading, or failed). Pages wait on all of them.
 export const firstNotDone = (...states: ApiState<unknown>[]) => states.find((s) => s.status !== 'done');
+
+export interface Room {
+  id: string;
+  name: string;
+}
