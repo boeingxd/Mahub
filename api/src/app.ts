@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { registerAuth, type AuthOptions } from './auth/routes.js';
 import { registerCheckin, type CheckinOptions } from './checkin/routes.js';
 import type { Queryable } from './db.js';
+import { registerSections, type SectionsOptions } from './sections/routes.js';
 
 export interface AppOptions {
   db: Queryable;
@@ -13,11 +14,13 @@ export interface AppOptions {
   auth?: AuthOptions;
   // The rotating QR and the scan link (task Y3). Needs `auth` (its cookies).
   checkin?: CheckinOptions;
+  // Opening and closing check-in windows (task P3). Needs `auth` too.
+  sections?: SectionsOptions;
 }
 
 // Builds the Fastify app without starting it. server.ts calls listen();
 // tests call app.inject() to send fake requests without opening a port.
-export function buildApp({ db, logLevel = 'info', trustProxy = '', auth, checkin }: AppOptions): FastifyInstance {
+export function buildApp({ db, logLevel = 'info', trustProxy = '', auth, checkin, sections }: AppOptions): FastifyInstance {
   const app = Fastify({
     logger: {
       level: logLevel,
@@ -65,6 +68,7 @@ export function buildApp({ db, logLevel = 'info', trustProxy = '', auth, checkin
     app.register(async (scope) => {
       await registerAuth(scope, auth);
       if (checkin) await registerCheckin(scope, checkin);
+      if (sections) await registerSections(scope, sections);
     });
   }
 
