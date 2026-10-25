@@ -20,19 +20,6 @@ type View = 'checkin' | 'roster';
 
 export function SessionPage() {
   const { id = '' } = useParams();
-  // "Start check-in" on the dashboard still sends new-<section> until the room
-  // list exists (GET /api/rooms), so there is no real window to show yet.
-  if (id.startsWith('new-')) {
-    return (
-      <>
-        <Link to="/instructor" className="back-link">
-          <BackIcon />
-          My classes
-        </Link>
-        <p className="empty">Opening a check-in needs the room list, which isn't built yet.</p>
-      </>
-    );
-  }
   return <LiveSession id={id} />;
 }
 
