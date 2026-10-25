@@ -1,11 +1,12 @@
 // Shared building blocks. Pages import from here: import { Button, Card } from '../ui';
 export { ActionSheet, type SheetAction } from './ActionSheet';
-export { ApiStatus } from './ApiStatus';
+export { ApiStatus, ErrorBox } from './ApiStatus';
 export { Badge, type BadgeTone } from './Badge';
 export { Button, ButtonLink, ButtonRoute } from './Button';
 export { Card } from './Card';
 export { ConfirmDialog } from './ConfirmDialog';
 export { AlertIcon, BackIcon, CheckIcon, ChevronIcon, LocationIcon, ProjectorIcon } from './icons';
+export { LiveQr } from './LiveQr';
 export { Layout } from './Layout';
 export { List, ListRow } from './List';
 export { Pass, type PassColor, type PassField } from './Pass';
