@@ -28,6 +28,16 @@ export async function registerSections(app: FastifyInstance, { store }: Sections
     return store.listMine(userId);
   });
 
+  // The rooms to pick from when opening a window. Any signed-in user may ask
+  // (the database allows it); only the id and name are ever sent. We pick the two
+  // fields here too, so a wider query later can't leak the location by accident.
+  app.get('/rooms', async (request, reply) => {
+    const userId = request.session.get('userId');
+    if (!userId) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
+    const rooms = await store.listRooms(userId);
+    return rooms.map(({ id, name }) => ({ id, name }));
+  });
+
   // Open a check-in window.
   app.post('/sections/:id/class-sessions', async (request, reply) => {
     const userId = request.session.get('userId');

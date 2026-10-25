@@ -20,7 +20,7 @@ One format for every error: `{"error": "CODE"}`. The code is for the screen to t
 
 ## Sections and check-in windows (P3)
 
-A **check-in window** is a row in `class_sessions`. The instructor opens it by hand, students can check in while it's open, and the instructor closes it by hand. Nothing closes it automatically (ADR 0005). Only the instructor of a section can use these four endpoints.
+A **check-in window** is a row in `class_sessions`. The instructor opens it by hand, students can check in while it's open, and the instructor closes it by hand. Nothing closes it automatically (ADR 0005). Only the instructor of a section can use the endpoints below, except `GET /api/rooms`, which any signed-in user may call.
 
 ### `GET /api/my/sections`
 
@@ -43,6 +43,21 @@ Response `200`:
 ```
 
 `open_session_id` is the id of the section's open window, or `null` if there is none. The screen uses it to show "Open" or "Go to live session".
+
+### `GET /api/rooms`
+
+The rooms to pick from on the "Start check-in" screen. Any signed-in user may call it (it is just a list of names). Each room is only its `id` and `name`: the coordinates and radius never leave the database, and the server copies them into the window itself when it opens.
+
+Response `200`, sorted by name:
+
+```json
+[
+  { "id": "00000000-0000-0000-0000-0000000000f1", "name": "SIIT Building A, Room 101" },
+  { "id": "00000000-0000-0000-0000-0000000000f2", "name": "SIIT Building B, Room 201" }
+]
+```
+
+Errors: `401 UNAUTHENTICATED`.
 
 ### `POST /api/sections/:id/class-sessions`
 
@@ -81,7 +96,3 @@ One window, for the live-session screen.
 Response `200`: the same shape as above.
 
 Errors: `400`, `401`, `403`.
-
-## Not decided yet
-
-- **Room list for the "open" screen.** Opening needs a `room_id`, so the screen needs the list of rooms (name + id). Rooms are readable by anyone signed in already, so `GET /api/rooms` would be a few lines. It is not part of P3 as written: boeingxd and postscrippt to agree whether to add it.

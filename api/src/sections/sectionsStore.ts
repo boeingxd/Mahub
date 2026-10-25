@@ -23,6 +23,14 @@ export interface MySection {
   open_session_id: string | null;
 }
 
+// A room, as the room picker needs it. Never the coordinates or the radius:
+// the location is what the check-in is judged against, and the browser has no
+// use for it.
+export interface Room {
+  id: string;
+  name: string;
+}
+
 // Why something was refused. routes.ts turns each one into an HTTP status.
 export type SectionsError = 'FORBIDDEN' | 'ROOM_NOT_FOUND' | 'SESSION_ALREADY_OPEN' | 'SESSION_CLOSED';
 export type Result = { ok: true; session: ClassSession } | { ok: false; error: SectionsError };
@@ -30,6 +38,7 @@ export type Result = { ok: true; session: ClassSession } | { ok: false; error: S
 // What the endpoints need from the database. Tests use a fake one.
 export interface SectionsStore {
   listMine(userId: string): Promise<MySection[]>;
+  listRooms(userId: string): Promise<Room[]>;
   open(userId: string, sectionId: string, roomId: string): Promise<Result>;
   close(userId: string, classSessionId: string): Promise<Result>;
   get(userId: string, classSessionId: string): Promise<Result>;
@@ -59,6 +68,15 @@ export function createSectionsStore(pool: Pick<pg.Pool, 'query' | 'connect'>): S
            WHERE ${mayManage('s.id')} AND s.archived_at IS NULL
            ORDER BY c.code, s.term DESC, s.section_no`,
         );
+        return rows;
+      });
+    },
+
+    async listRooms(userId) {
+      return withUser(pool, userId, async (client) => {
+        // Row-level security lets any signed-in user read rooms (and nobody
+        // else). We ask for id and name only: `location` stays in the database.
+        const { rows } = await client.query<Room>('SELECT id, name FROM api.rooms ORDER BY name');
         return rows;
       });
     },
