@@ -42,5 +42,6 @@ The exceptions are the moments before we know the user: sign-in (Y1) calls the `
 ## Notes for other tasks
 
 - **P3 (open/close):** run the INSERT and UPDATE on `class_sessions` inside `withUser(...)` as the instructor. Copy `location` and `radius_m` from `rooms` (anyone signed in may read rooms).
-- **P4 (views):** create views with `WITH (security_invoker = true)`. Otherwise a view runs with its owner's rights and **skips RLS**, so a student could read everyone's attendance through it. Marking a student absent means deleting their row, and `app_rw` has no DELETE yet: we'll add a DELETE policy for the section's instructor when P4 needs it.
+- **Views (P4, done):** `api.v_session_roster` and `api.v_section_attendance_rate` are created `WITH (security_invoker = true)`, and `reportsStore.test.ts` fails if that is removed. Otherwise a view runs with its owner's rights and **skips RLS**, so a student could read everyone's attendance through it. Any new view needs the same option plus its own `GRANT SELECT`. The instructor's manual mark is an INSERT ... ON CONFLICT DO UPDATE through the existing `attendance_manual_mark` / `attendance_manual_change` policies.
+- **Clearing a manual mark** means deleting an attendance row, and `app_rw` has no DELETE. Not built in P4: it would need a DELETE grant and a policy for the section's instructor (and P5's audit trigger should see it first). Ask Yayikast.
 - **New tables:** RLS is off by default. Every new `api` table needs `ENABLE ROW LEVEL SECURITY`, policies, and a GRANT to `app_rw`/`app_ro` in the same migration.

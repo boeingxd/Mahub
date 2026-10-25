@@ -4,6 +4,7 @@ import { createUserStore } from './auth/userStore.js';
 import { createQrStore } from './checkin/qrStore.js';
 import { loadConfig } from './config.js';
 import { assertRlsApplies, createPool } from './db.js';
+import { createReportsStore } from './reports/reportsStore.js';
 import { createSectionsStore } from './sections/sectionsStore.js';
 
 const config = loadConfig();
@@ -23,6 +24,7 @@ const app = buildApp({
   },
   checkin: { qrSecret: config.QR_SECRET, store: createQrStore(pool) },
   sections: { store: createSectionsStore(pool) },
+  reports: { store: createReportsStore(pool) },
 });
 
 // Without this, an idle pooled connection that dies (e.g. the DB restarts)
