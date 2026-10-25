@@ -181,4 +181,18 @@ describe.skipIf(!testDb)('open and close check-in windows', () => {
     // A student has no sections to teach.
     expect(await store.listMine(student)).toEqual([]);
   });
+
+  it('the room list: any signed-in user gets every room, as just id and name, sorted by name', async () => {
+    for (const who of [student, INSTRUCTOR_1, INSTRUCTOR_2]) {
+      const rooms = await store.listRooms(who);
+      const names = rooms.map((r) => r.name);
+      expect(names, who).toEqual(expect.arrayContaining(['SIIT Building A, Room 101', 'SIIT Building B, Room 201']));
+      expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, 'en')));
+      for (const r of rooms) expect(Object.keys(r).sort()).toEqual(['id', 'name']); // no location, no radius
+    }
+    // The same ids that "open a window" accepts.
+    const a = (await store.listRooms(INSTRUCTOR_1)).find((r) => r.name === 'SIIT Building A, Room 101')!;
+    const section = await newSection();
+    expect((await store.open(INSTRUCTOR_1, section, a.id)).ok).toBe(true);
+  });
 });

@@ -11,7 +11,8 @@
     "start": "node dist/server.js",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "db:app-user": "node --env-file=../.env --import tsx scripts/create-app-user.ts"
+    "db:app-user": "node --env-file=../.env --import tsx scripts/create-app-user.ts",
+    "db:dev-instructor": "node --env-file=../.env --import tsx scripts/dev-instructor.ts"
   },
   "dependencies": {
     "@fastify/secure-session": "^8.4.1",
