@@ -52,7 +52,7 @@ const COLUMNS = 'id, section_id, room_id, radius_m, opened_by, opened_at, closed
 // section. Row-level security already enforces both, but we check them in the
 // query too, so a refusal is a clean "nothing matched" and not a database error.
 // `section` is the SQL expression for the section id (a column or a parameter).
-const mayManage = (section: string) => `private.has_role('instructor') AND private.teaches_section(${section})`;
+export const mayManage = (section: string) => `private.has_role('instructor') AND private.teaches_section(${section})`;
 
 export function createSectionsStore(pool: Pick<pg.Pool, 'query' | 'connect'>): SectionsStore {
   return {

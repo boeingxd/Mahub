@@ -972,6 +972,14 @@ a {
   font-weight: 600;
 }
 
+.api-status {
+  margin-top: var(--space-6);
+}
+
+.api-status-action {
+  margin-top: var(--space-3);
+}
+
 .inline-alert-text {
   font-size: var(--font-size-subhead);
   margin-top: 2px;
