@@ -34,17 +34,6 @@ export const fakeSession = {
   checkedIn: 18,
 };
 
-// The summary shown after the instructor ends a session.
-export const fakeSessionSummary = {
-  date: 'Fri 9 Oct',
-  startedAt: '09:00',
-  endedAt: '09:06',
-  enrolled: 32,
-  present: 18,
-  excused: 1,
-  absent: 13,
-};
-
 export type RosterStatus = 'present' | 'excused' | 'absent';
 
 export interface FakeRosterRow {
@@ -54,14 +43,6 @@ export interface FakeRosterRow {
   time?: string; // check-in time, 24 h
   manual?: boolean; // marked by the instructor by hand (attendance.method = 'manual')
 }
-
-export const fakeRoster: FakeRosterRow[] = [
-  { studentNo: '6722780001', name: 'Student One', status: 'present', time: '09:01' },
-  { studentNo: '6722780002', name: 'Student Two', status: 'present', time: '09:02' },
-  { studentNo: '6722780003', name: 'Student Three', status: 'excused', manual: true },
-  { studentNo: '6722780004', name: 'Student Four', status: 'absent' },
-  { studentNo: '6722780005', name: 'Student Five', status: 'present', time: '09:03' },
-];
 
 // --- Student side ---
 
