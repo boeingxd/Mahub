@@ -85,7 +85,17 @@ export const errorText: Record<string, { title: string; message: string }> = {
   FORBIDDEN: { title: 'Not allowed', message: "You don't have access to that." },
   BAD_REQUEST: { title: 'Something was wrong with that request', message: 'Go back and try again.' },
   NOT_FOUND: { title: 'Not found', message: "That class or check-in doesn't exist, or it isn't yours." },
-  NOT_ENROLLED: { title: 'Not in this class', message: "That student isn't enrolled in this section." },
+  NOT_ENROLLED: {
+    title: 'Not in this class',
+    // Shared: a student checking in, and an instructor marking someone by hand.
+    message: "That account isn't enrolled in this section. The instructor can check the class list.",
+  },
+  QR_EXPIRED: { title: 'That QR has expired', message: 'Scan the QR code on the screen again.' },
+  OUT_OF_RANGE: {
+    title: "You're too far from the room",
+    message: 'Move closer to the front of the room, wait for a better GPS signal, then try again.',
+  },
+  ALREADY_PRESENT: { title: "You're already checked in", message: 'Your attendance is already recorded.' },
   ROOM_NOT_FOUND: { title: 'Room not found', message: 'Pick a room from the list and try again.' },
   SESSION_ALREADY_OPEN: { title: 'Already open', message: 'This class already has a check-in open.' },
   SESSION_CLOSED: { title: 'Already closed', message: 'This check-in has already ended.' },

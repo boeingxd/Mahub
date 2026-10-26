@@ -1,6 +1,6 @@
 # API contract
 
-Every endpoint the demo needs: who may call it, what to send, what comes back. Built from task A1 (#24). **Only the instructor section below is written so far** (task P3). The auth, QR/check-in and live-roster sections are still to be added by their owners.
+Every endpoint the demo needs: who may call it, what to send, what comes back. Built from task A1 (#24). Written so far: sign-in, the QR and student check-in, and the instructor endpoints. The live-roster (WebSocket) section and the student endpoints are still to be added.
 
 Caddy strips `/api` before the request reaches the API, so inside the API a route is `/my/sections`, but the browser calls `/api/my/sections`. Paths below are the browser's.
 
@@ -11,14 +11,112 @@ One format for every error: `{"error": "CODE"}`. The code is for the screen to t
 | HTTP | Code | Meaning |
 |---|---|---|
 | 400 | `BAD_REQUEST` | The request body or an id in the address isn't the right shape |
+| 400 | `QR_EXPIRED` | Check-in without a scan in the last 90 s. Scan the QR again |
+| 400 | `LOGIN_EXPIRED`, `LOGIN_FAILED` | Google sign-in didn't finish (only on `/api/auth/callback`) |
 | 401 | `UNAUTHENTICATED` | Not signed in |
+| 403 | `NOT_ENROLLED` | Check-in: you are not in this section |
 | 403 | `FORBIDDEN` | Signed in, but not the instructor of that section. Also sent when the id doesn't exist, so nobody can probe which ids are real |
 | 404 | `ROOM_NOT_FOUND` | `room_id` is not a room |
 | 404 | `NOT_ENROLLED` | The student you tried to mark is not in this section |
 | 409 | `SESSION_ALREADY_OPEN` | That section already has an open check-in window |
+| 404 | `NOT_FOUND` | The projector QR: no such window, or not yours (we don't say which) |
 | 409 | `SESSION_CLOSED` | The window is already closed |
+| 409 | `ALREADY_PRESENT` | Check-in: you are already marked for this window |
+| 422 | `OUT_OF_RANGE` | Check-in: you are too far from the room |
 | 429 | `RATE_LIMITED` | Too many requests. Per IP on every endpoint (300 a minute); per signed-in user on `/checkin/*` (5 a minute). See `docs/NETWORK.md` |
 | 500 | `INTERNAL` | Our bug. Details are in the server log, never in the reply |
+
+## Sign-in (Y1)
+
+Google sign-in with our own login cookie (`mahub_session`: encrypted, HttpOnly, 8 h). Who may sign in is ADR 0007: a `<10 digits>@g.siit.tu.ac.th` account becomes a student; anyone else must already be registered by an admin.
+
+### `GET /api/auth/login?returnTo=/path`
+
+The "Sign in with Google" button links here. Redirects to Google. `returnTo` (optional) must be a path on this site; anything else is ignored.
+
+### `GET /api/auth/callback`
+
+Google sends the browser back here. On success: a `303` redirect to `returnTo`, or else the home screen for the user's role (`/instructor` or `/student`). A refused email goes to `/not-registered`.
+
+Errors: `400 LOGIN_EXPIRED` (no sign-in in progress), `400 LOGIN_FAILED` (Google said no, or the answer was forged).
+
+### `POST /api/auth/logout`
+
+Deletes the login cookie. No body. Response `204`. It is a POST so another website can't log you out with a link.
+
+### `GET /api/me`
+
+Who is signed in. The web app uses it to choose screens.
+
+Response `200`:
+
+```json
+{ "id": "…", "email": "6722781026@g.siit.tu.ac.th", "fullName": "Yayikast", "roles": ["student"] }
+```
+
+Errors: `401 UNAUTHENTICATED`.
+
+## QR and student check-in (Y3, Y4)
+
+How a check-in works, end to end:
+
+1. The projector shows a QR that changes every 10 s (`GET /api/class-sessions/:id/qr`).
+2. The student's phone camera opens the QR's link (`/c/...`). The server checks it and remembers the scan for 90 s in a second cookie (`mahub_scan`), then sends the student to sign in if needed, and on to `/checkin`.
+3. The `/checkin` page asks the phone for its location and sends it to `POST /api/checkin/complete`. The server decides and records attendance. The browser never writes attendance itself.
+
+### `GET /api/class-sessions/:id/qr`
+
+The current QR for the projector. Only the section's instructor. Ask again when `expires_in` runs out (or every few seconds).
+
+Response `200`:
+
+```json
+{
+  "url": "https://<host>/c/<class_session_id>.<window>.<token>",
+  "window": 179298000,
+  "expires_in": 7,
+  "server_time": "2026-10-26T02:00:03.000Z"
+}
+```
+
+`url` is what the QR encodes. A QR is accepted for 20 to 30 s (its own 10 s window and one either side), so a photo sent to a friend stops working almost at once. Showing the QR writes nothing to the database.
+
+Errors: `401`, `404 NOT_FOUND` (no such window, or not your section), `409 SESSION_CLOSED`.
+
+### `GET /c/:id.:window.:token` (the scan)
+
+Not under `/api`: this is the link inside the QR. It never answers with JSON, only redirects:
+
+| Situation | Redirect to | Scan cookie |
+|---|---|---|
+| Good QR, not signed in | `/api/auth/login?returnTo=%2Fcheckin` | set (90 s) |
+| Good QR, signed in | `/checkin` | set (90 s) |
+| Old, forged or malformed QR | `/checkin?error=QR_EXPIRED` | not set |
+| Window closed | `/checkin?error=SESSION_CLOSED` | not set |
+
+### `POST /api/checkin/complete`
+
+The student checks in. Needs the login cookie and a scan from the last 90 s. The window comes from the scan cookie, never from the body.
+
+Request body (all three required, all numbers, nothing else allowed):
+
+```json
+{ "lat": 14.0690, "lng": 100.6150, "accuracy": 12 }
+```
+
+`lat` −90 to 90, `lng` −180 to 180, `accuracy` 0 to 5000 metres (the browser's `coords.accuracy`).
+
+The server, in one transaction: checks the window is open, checks the student is enrolled, measures the distance to the room in PostGIS (allowed if within `radius_m` plus the accuracy, but the accuracy counts for at most 30 m), then inserts the attendance row (`ON CONFLICT DO NOTHING`, so two taps make one row). Every attempt, refused or not, is logged in `checkin_attempts`. Latitude and longitude are never stored, only the distance (ADR 0006).
+
+Response `200`:
+
+```json
+{ "result": "present", "distance_m": 12.4 }
+```
+
+Errors: `400 BAD_REQUEST` (body), `400 QR_EXPIRED` (no scan, or older than 90 s), `401`, `403 NOT_ENROLLED`, `409 SESSION_CLOSED`, `409 ALREADY_PRESENT`, `422 OUT_OF_RANGE`.
+
+The scan is used up after an answer, so scanning again is needed for another try. The one exception is `OUT_OF_RANGE`: the scan is kept, so the student can retry with a better GPS fix within the same 90 s.
 
 ## Sections and check-in windows (P3)
 

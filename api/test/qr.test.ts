@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import type { GoogleAuth } from '../src/auth/google.js';
 import type { UserStore } from '../src/auth/loginPolicy.js';
+import type { CheckinStore } from '../src/checkin/checkinStore.js';
 import { makeToken, verifyToken, windowAt } from '../src/checkin/qr.js';
 import type { QrStore } from '../src/checkin/qrStore.js';
 import type { Queryable } from '../src/db.js';
@@ -101,7 +102,8 @@ function build(trustProxy = '') {
     logLevel: 'silent',
     trustProxy,
     auth: { google, users, sessionKey: randomBytes(32) },
-    checkin: { qrSecret: SECRET, store, now: () => NOW },
+    // The check-in itself is tested in checkin.test.ts.
+    checkin: { qrSecret: SECRET, store, checkins: {} as CheckinStore, now: () => NOW },
   });
   app = built;
   return built;

@@ -1,8 +1,8 @@
 # Status
 
-One page: what is built, what is next, and who needs what from whom. Update it when a task lands (a quick edit in the same PR is enough). The full plan is `PROJECT_PLAN.md`; the task list is the GitHub issues. Last updated: 25 Oct 2026.
+One page: what is built, what is next, and who needs what from whom. Update it when a task lands (a quick edit in the same PR is enough). The full plan is `PROJECT_PLAN.md`; the task list is the GitHub issues. Last updated: 26 Oct 2026.
 
-The plan's demo date was Fri 23 Oct. Whether that moved is not written down anywhere: **check with the team and put the real date here.**
+**Demo: Wed 28 Oct 2026** (moved from Fri 23 Oct).
 
 ## Built
 
@@ -13,11 +13,12 @@ The plan's demo date was Fri 23 Oct. Whether that moved is not written down anyw
 | QR | Done (code) | Rotating HMAC QR for the projector and the scan link (`/c/...`) |
 | Check-in windows | Done (code) | `GET /my/sections`, `GET /rooms`, open, close, get one window |
 | Roster, reports, manual marks | Done (code) | `GET /class-sessions/:id/roster`, `GET /sections/:id/report` (JSON or CSV), `POST /class-sessions/:id/attendance` |
-| **Student check-in** | **Not built** | Task Y4 (#35): GPS check and the one transaction |
+| Student check-in | Done (code) | `POST /checkin/complete` (Y4): scan cookie, enrolment, PostGIS geofence, one transaction, every attempt logged |
 | Live roster (WebSocket) | Not built | Task B5 (#36). The web app asks again every 5 seconds meanwhile |
 | Rate limits, real client IP | Not built | Task B7 (#38). The tunnel passes `CF-Connecting-IP` to Caddy, but nothing limits requests yet |
 | CI and load test | Not started | Task B8 (#39) |
 | Audit trigger, indexes | Not built | P5 (#40), P6 (#41) |
+| Regression tests | Done | Y6: one file per old bug in `api/test/regressions/`. Also tightened the GPS CHECKs so the database refuses `NaN` and `Infinity` |
 | Caddy, Cloudflare Tunnel | Done | See `docs/NETWORK.md` |
 
 ## The web app: real or sample?
@@ -30,7 +31,7 @@ The plan's demo date was Fri 23 Oct. Whether that moved is not written down anyw
 | Live session (`/session/:id`) | **Real**: QR, count, roster, mark present/excused, end session |
 | Projector (`/projector/:id`) | **Real**: QR and count |
 | Session summary (`/summary/:id`) | **Real** (`/class-sessions/:id`, `/my/sections`, roster). The CSV button downloads the whole section's report |
-| Student check-in (`/checkin`) | Location prompt only. Nothing is recorded (needs Y4) |
+| Student check-in (`/checkin`) | **Real** (`POST /checkin/complete`). Not yet tested on a real phone |
 | Student classes, overview, class detail | Sample data. No student endpoints exist or are documented yet |
 | `/dev`, `/checkin?preview=done`, `web/src/fakeData.ts` | Temporary. Delete when the screens above are real |
 
@@ -42,13 +43,12 @@ How the web app talks to the API: `web/src/api.ts` (`useApi`, `apiPost`, friendl
 
 | Task | Who | Notes |
 |---|---|---|
-| #24 A1 API contract (`docs/API.md`) | all three | Instructor, rooms and roster parts are written. Missing: auth, QR/scan, check-in, student endpoints |
-| #35 Y4 student check-in | Yayikast | The big missing piece for the demo |
+| #24 A1 API contract (`docs/API.md`) | all three | Sign-in, QR, check-in, instructor, rooms and roster are written. Missing: live roster (WebSocket), student endpoints |
 | #37 B6 screens | boeingxd | Instructor screens are all wired; the student screens wait for endpoints |
-| #36 B5 live roster (WebSocket) | boeingxd | Needs check-ins to exist (Y4) to be worth showing |
+| #36 B5 live roster (WebSocket) | boeingxd | Check-ins now exist (Y4), so this can be shown |
 | #38 B7 rate limits, #39 B8 CI + k6 | boeingxd | No dependencies, can be done any time |
-| #40, #41 | postscrippt | Audit trigger, indexes + EXPLAIN |
-| #42, #43 | Yayikast | Threat model, regression tests |
+| #40, #41 | postscrippt | Audit trigger, indexes + EXPLAIN (write-up in `docs/PERFORMANCE.md`) |
+| #42 | Yayikast | Threat model written (`docs/THREAT_MODEL.md`); needs boeingxd's and postscrippt's review |
 | #44 A2 demo rehearsal + slides | all three | |
 
 After #37 is done, boeingxd plans a **UI revamp** (a new look; see "Decisions"). It is not started.
