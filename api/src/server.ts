@@ -14,6 +14,7 @@ const app = buildApp({
   db: pool,
   logLevel: config.LOG_LEVEL,
   trustProxy: config.TRUST_PROXY,
+  ipLimit: config.RATE_LIMIT_IP,
   auth: {
     google: createGoogleAuth({
       clientId: config.GOOGLE_CLIENT_ID,
@@ -22,11 +23,14 @@ const app = buildApp({
     }),
     users: createUserStore(pool),
     sessionKey: Buffer.from(config.SESSION_KEY, 'hex'),
+    loadTest: config.LOAD_TEST === '1',
   },
   checkin: { qrSecret: config.QR_SECRET, store: createQrStore(pool), checkins: createCheckinStore(pool) },
   sections: { store: createSectionsStore(pool) },
   reports: { store: createReportsStore(pool) },
 });
+
+if (config.LOAD_TEST === '1') app.log.warn('LOAD_TEST is on: POST /auth/test-login lets anyone sign in. Never use this for real.');
 
 // Without this, an idle pooled connection that dies (e.g. the DB restarts)
 // emits an 'error' event that would crash the whole process.

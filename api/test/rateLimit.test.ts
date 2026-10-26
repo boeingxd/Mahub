@@ -14,13 +14,14 @@ afterEach(async () => {
 });
 
 describe('per-IP limit', () => {
+  const LIMIT = 20; // the real one (3000) would make this test slow
   const hit = (headers: Record<string, string>, remoteAddress: string) =>
     app.inject({ method: 'GET', url: '/healthz', headers, remoteAddress });
 
   it('answers 429 RATE_LIMITED after too many requests from one IP, and not for another IP', async () => {
-    app = buildApp({ db, logLevel: 'silent', trustProxy: '172.28.1.0/24' });
+    app = buildApp({ db, logLevel: 'silent', trustProxy: '172.28.1.0/24', ipLimit: LIMIT });
     const caddy = '172.28.1.5';
-    for (let i = 0; i < IP_LIMIT; i++) {
+    for (let i = 0; i < LIMIT; i++) {
       expect((await hit({ 'x-forwarded-for': '203.0.113.7' }, caddy)).statusCode).toBe(200);
     }
     const limited = await hit({ 'x-forwarded-for': '203.0.113.7' }, caddy);
@@ -32,13 +33,17 @@ describe('per-IP limit', () => {
   });
 
   it("a forged X-Forwarded-For from outside the proxy doesn't dodge the limit", async () => {
-    app = buildApp({ db, logLevel: 'silent', trustProxy: '172.28.1.0/24' });
+    app = buildApp({ db, logLevel: 'silent', trustProxy: '172.28.1.0/24', ipLimit: LIMIT });
     // Same real source (not Caddy) pretending to be a new visitor every time.
-    for (let i = 0; i < IP_LIMIT; i++) {
+    for (let i = 0; i < LIMIT; i++) {
       await hit({ 'x-forwarded-for': `198.51.100.${i % 250}` }, '10.9.9.9');
     }
     expect((await hit({ 'x-forwarded-for': '198.51.100.250' }, '10.9.9.9')).statusCode).toBe(429);
   });
+});
+
+it('allows a whole lecture hall behind one IP: the default is 3000 a minute', () => {
+  expect(IP_LIMIT).toBe(3000);
 });
 
 describe('per-user check-in limit', () => {

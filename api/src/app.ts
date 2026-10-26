@@ -12,6 +12,8 @@ export interface AppOptions {
   logLevel?: string;
   // Comma-separated proxy IPs/ranges to trust for X-Forwarded-For ('' = none).
   trustProxy?: string;
+  // Requests per minute per IP (see rateLimit.ts). Tests pass a small number.
+  ipLimit?: number;
   // Google login + session cookie. Left out by tests that don't need it.
   auth?: AuthOptions;
   // The rotating QR and the scan link (task Y3). Needs `auth` (its cookies).
@@ -24,7 +26,7 @@ export interface AppOptions {
 
 // Builds the Fastify app without starting it. server.ts calls listen();
 // tests call app.inject() to send fake requests without opening a port.
-export function buildApp({ db, logLevel = 'info', trustProxy = '', auth, checkin, sections, reports }: AppOptions): FastifyInstance {
+export function buildApp({ db, logLevel = 'info', trustProxy = '', ipLimit, auth, checkin, sections, reports }: AppOptions): FastifyInstance {
   const app = Fastify({
     logger: {
       level: logLevel,
@@ -46,7 +48,7 @@ export function buildApp({ db, logLevel = 'info', trustProxy = '', auth, checkin
     genReqId: () => randomUUID(),
   });
 
-  registerIpLimit(app); // before any route, so it covers all of them
+  registerIpLimit(app, ipLimit); // before any route, so it covers all of them
 
   // Send the ID back to the client too, so a bug report can quote it.
   app.addHook('onSend', async (request, reply) => {
