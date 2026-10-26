@@ -66,10 +66,23 @@ Two ways in, both ending at Caddy. Your browser uses door 1. Phones use door 2 (
 
 ## Who trusts whom
 
-- **Through the tunnel, the real client IP is in `CF-Connecting-IP`.** Anyone can send a header with that name, so Caddy believes it only when the request comes from the tunnel container, which has a fixed address (`172.28.1.10`, `trusted_proxies` in the Caddyfile). Door 2 then copies that IP into `X-Forwarded-For` for the API. Door 1 does the same with the real connection address. From anyone else the header is ignored. (Rate limits in B7 use this IP; it's never stored.)
+- **Through the tunnel, the real client IP is in `CF-Connecting-IP`.** Anyone can send a header with that name, so Caddy believes it only when the request comes from the tunnel container, which has a fixed address (`172.28.1.10`, `trusted_proxies` in the Caddyfile). Door 2 then copies that IP into `X-Forwarded-For` for the API. Door 1 does the same with the real connection address. From anyone else the header is ignored. (The per-IP rate limit uses this IP; it's never stored.)
 - **The real client IP.** Caddy overwrites `X-Forwarded-For` with the address it actually received the connection from, so a visitor can't fake it. The API believes that header only when the request comes from `172.28.1.0/24` (`TRUST_PROXY`), the `frontend` network where Caddy lives. Tests in `api/test/health.test.ts` check both cases.
 - **Request IDs.** Caddy replaces any `X-Request-Id` the client sends with a fresh UUID. The API logs it on every line and returns it in the response, so one ID traces a request through both services.
 - **No IPs stored** (ADR 0006). The API doesn't log IPs, and Caddy's access log is off.
+
+## Rate limits (API, `api/src/rateLimit.ts`)
+
+| Where | Limit | Counted per | Why |
+|---|---|---|---|
+| Every endpoint | 300 a minute | IP (`request.ip`, the real visitor behind Caddy) | Stops a flood from one machine. Generous, because a whole lecture hall shares one campus IP (NAT) |
+| `/checkin/*` | 5 a minute | signed-in user | A student needs one try, a few if the signal is bad. Per user, not per IP, for the same NAT reason. Signed-out requests aren't counted here (the route answers 401) |
+
+Over the limit the API answers `429` with `{"error":"RATE_LIMITED"}`. A request to `/checkin/*` counts against both limits.
+
+- **Counters live in memory** and are keyed by IP or user id. Nothing is written to disk or the database, and no log line contains an IP (ADR 0006). They reset when the API restarts and aren't shared between several API containers (we run one; Redis would be the next step).
+- **A forged `X-Forwarded-For` can't dodge the per-IP limit.** The API only believes that header from Caddy's network (`TRUST_PROXY`); from anyone else `request.ip` is the real connection address. `api/test/rateLimit.test.ts` checks it, and `api/test/health.test.ts` checks the trust rule itself.
+- **Edge limit in Caddy: not done.** Caddy has no built-in rate limiter (it needs a plugin and a custom image build), so the generous per-IP limit lives in the API. It still sees the real IP because Caddy sets `X-Forwarded-For`.
 
 ## Trust Caddy's certificate on your Mac (once)
 

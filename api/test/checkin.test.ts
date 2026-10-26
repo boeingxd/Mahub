@@ -15,6 +15,9 @@ import type { Queryable } from '../src/db.js';
 const SECRET = 'test-secret-that-is-at-least-32-characters-long';
 const SESSION = randomUUID();
 const STUDENT = randomUUID();
+// Who the fake Google says just signed in. A test that sends many requests
+// signs in as a new student each time, so the 5/min per-user limit isn't hit.
+let signedInAs = STUDENT;
 const START = Date.UTC(2026, 9, 26, 9, 0, 3);
 const GOOD_BODY = { lat: 14.07, lng: 100.6, accuracy: 12 };
 
@@ -45,7 +48,7 @@ const google: GoogleAuth = {
     return { url: 'https://accounts.google.test/', checks: { state: 's', nonce: 'n', codeVerifier: 'v' } };
   },
   async finish() {
-    return { sub: STUDENT, email: 'x@example.com', emailVerified: true };
+    return { sub: signedInAs, email: 'x@example.com', emailVerified: true };
   },
 };
 const users = {
@@ -60,6 +63,7 @@ const users = {
 let app: FastifyInstance;
 beforeEach(() => {
   clock = START;
+  signedInAs = STUDENT;
   nextOutcome = 'ok';
   calls = [];
   app = buildApp({
@@ -116,7 +120,7 @@ describe('POST /checkin/complete', () => {
   // Old bug 2 (PROJECT_PLAN.md §2): `lat: "x"` became NaN and every
   // distance comparison with NaN is false, so the GPS check was skipped.
   it('refuses a body that is not three numbers in range (lat: "x")', async () => {
-    const cookies = { mahub_session: await loginCookie(), mahub_scan: await scanCookie() };
+    const scan = await scanCookie();
     for (const body of [
       { ...GOOD_BODY, lat: 'x' },
       { ...GOOD_BODY, lat: '14.07' },
@@ -127,7 +131,8 @@ describe('POST /checkin/complete', () => {
       { lat: 14.07, lng: 100.6 },
       { ...GOOD_BODY, extra: 1 },
     ]) {
-      const res = await complete(body, cookies);
+      signedInAs = randomUUID();
+      const res = await complete(body, { mahub_session: await loginCookie(), mahub_scan: scan });
       expect(res.statusCode, JSON.stringify(body)).toBe(400);
       expect(res.json()).toEqual({ error: 'BAD_REQUEST' });
     }
