@@ -113,7 +113,7 @@ CREATE INDEX checkin_attempts_session_idx ON api.checkin_attempts (class_session
 CREATE INDEX checkin_attempts_user_idx ON api.checkin_attempts (user_id, at);
 
 -- ------------------------------------------------------------------ audit
--- Append-only log. Triggers that fill it and the "nobody can UPDATE/DELETE" grants come in P5/Y2.
+-- Append-only log. The trigger that fills it and the grants are in the P5 migration (audit_trigger).
 CREATE TABLE audit.events (
     id          bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     at          timestamptz NOT NULL DEFAULT now(),
