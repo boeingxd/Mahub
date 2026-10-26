@@ -32,7 +32,7 @@ One page: what is built, what is next, and who needs what from whom. Update it w
 | Projector (`/projector/:id`) | **Real**: QR and count |
 | Session summary (`/summary/:id`) | **Real** (`/class-sessions/:id`, `/my/sections`, roster). The CSV button downloads the whole section's report |
 | Student check-in (`/checkin`) | **Real** (`POST /checkin/complete`). Not yet tested on a real phone |
-| Student classes, overview, class detail | Sample data. No student endpoints exist or are documented yet |
+| Student classes, overview, class detail | Wired to the student endpoints in `docs/API.md` (B6). Real data once postscrippt builds the endpoints; so far checked only against mocked answers |
 | `/dev`, `/checkin?preview=done`, `web/src/fakeData.ts` | Temporary. Delete when the screens above are real |
 
 **None of the real screens has been run against the real API yet.** They were checked in a browser against mocked answers only. Also untested: the strict CSP under Caddy, dark mode on the new states, and scanning the QR with a phone.

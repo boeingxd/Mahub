@@ -1,57 +1,84 @@
 import { Link, useParams } from 'react-router';
-import { fakeStudentClasses, fakeStudentHistory } from '../fakeData';
-import { BackIcon, Badge, List, ListRow, Pass } from '../ui';
+import { useApi, type MyClassSessions, type MySession } from '../api';
+import { passColor } from '../passColor';
+import { dayLabel, rateText, sessionsCount, timeLabel } from '../studentFormat';
+import { ApiStatus, BackIcon, Badge, List, ListRow, Pass } from '../ui';
+
+// What a window says about the student: present, excused, absent, or, for a
+// window that is still open and has no check-in yet, "Open now" (not "Absent").
+function SessionBadge({ s }: { s: MySession }) {
+  if (s.status === 'present') return <Badge tone="success">Present</Badge>;
+  if (s.status === 'excused') return <Badge tone="neutral">Excused</Badge>;
+  return s.is_open ? <Badge tone="warning">Open now</Badge> : <Badge tone="danger">Absent</Badge>;
+}
+
+const BackLink = () => (
+  <Link to="/student" className="back-link">
+    <BackIcon />
+    My classes
+  </Link>
+);
 
 // One class, from the student's side: their rate and every session so far.
+// The route id is the section id. `key` makes the screen start fresh when it changes.
 export function StudentClassPage() {
-  const { id } = useParams();
-  const c = fakeStudentClasses.find((x) => x.id === id);
+  const { id = '' } = useParams();
+  return <ClassDetail key={id} sectionId={id} />;
+}
 
-  if (!c) {
+function ClassDetail({ sectionId }: { sectionId: string }) {
+  const detail = useApi<MyClassSessions>(`/my/classes/${sectionId}/sessions`);
+
+  if (detail.state.status !== 'done') {
     return (
       <>
-        <Link to="/student" className="back-link">
-          <BackIcon />
-          My classes
-        </Link>
-        <p className="empty">This class isn't in your list.</p>
+        <BackLink />
+        {/* The API answers 403 for a class you're not in, and for an id that doesn't exist. */}
+        {detail.state.status === 'error' && detail.state.code === 'FORBIDDEN' ? (
+          <p className="empty">This class isn't in your list.</p>
+        ) : (
+          <ApiStatus state={detail.state} retry={detail.retry} />
+        )}
       </>
     );
   }
-
-  const history = fakeStudentHistory[c.id] ?? [];
+  const { class: c, sessions } = detail.state.data;
 
   return (
     <>
-      <Link to="/student" className="back-link">
-        <BackIcon />
-        My classes
-      </Link>
+      <BackLink />
 
       <Pass
-        color={c.color}
-        code={c.course}
-        title={c.name}
-        subtitle={`Section ${c.sectionNo} · ${c.instructor}`}
+        color={passColor(c.course_code)}
+        code={c.course_code}
+        title={c.course_name}
+        subtitle={c.instructor_name ? `Section ${c.section_no} · ${c.instructor_name}` : `Section ${c.section_no}`}
         headingLevel="h1"
         fields={[
-          { label: 'Attendance', value: `${c.rate}%`, mono: true },
-          { label: 'Sessions', value: `${c.attended} of ${c.held}`, mono: true },
+          { label: 'Attendance', value: rateText(c.rate_pct), mono: true },
+          { label: 'Sessions', value: sessionsCount(c), mono: true },
         ]}
       />
 
-      <List header="Sessions" footer="Sample data. Times are 24-hour.">
-        {history.length === 0 ? (
+      <List header="Sessions" footer="Times are 24-hour.">
+        {sessions.length === 0 ? (
           <ListRow title="No sessions held yet for this class." />
         ) : (
-          history.map((h) => (
+          sessions.map((s) => (
             <ListRow
-              key={h.date}
-              title={h.date}
-              subtitle={h.time ? <span className="mono">{h.time}</span> : undefined}
-              detail={
-                h.status === 'present' ? <Badge tone="success">Present</Badge> : <Badge tone="danger">Absent</Badge>
+              key={s.class_session_id}
+              title={dayLabel(s.opened_at)}
+              subtitle={
+                s.status === 'present' && s.recorded_at ? (
+                  <span className="mono">
+                    {timeLabel(s.recorded_at)}
+                    {s.method === 'manual' ? ' · Marked by your instructor' : ''}
+                  </span>
+                ) : s.status === 'excused' ? (
+                  'Marked by your instructor'
+                ) : undefined
               }
+              detail={<SessionBadge s={s} />}
             />
           ))
         )}
