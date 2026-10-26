@@ -90,7 +90,7 @@ The plan was 2 weeks of building plus 1 buffer week, with the demo on Friday 23 
 | Done (merged) | Not built yet |
 |---|---|
 | The database, with its tables, security rules and sample data | The student's check-in itself (checking location, saving attendance) |
-| Google sign-in | The live roster updating by itself (it refreshes every few seconds for now) |
+| Google sign-in | The live roster updating by itself (built, waiting for review in PR #75) |
 | The rotating QR code, and opening and closing a check-in | Limits on how often one person can ask for things |
 | The roster, attendance rates, and marking a student by hand | Automatic tests on every change |
 | Caddy, the secure front door, and the tunnel for phones | |

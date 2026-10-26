@@ -14,7 +14,7 @@ One page: what is built, what is next, and who needs what from whom. Update it w
 | Check-in windows | Done (code) | `GET /my/sections`, `GET /rooms`, open, close, get one window |
 | Roster, reports, manual marks | Done (code) | `GET /class-sessions/:id/roster`, `GET /sections/:id/report` (JSON or CSV), `POST /class-sessions/:id/attendance` |
 | Student check-in | Done (code) | `POST /checkin/complete` (Y4): scan cookie, enrolment, PostGIS geofence, one transaction, every attempt logged |
-| Live roster (WebSocket) | Not built | Task B5 (#36). The web app asks again every 5 seconds meanwhile |
+| Live roster (WebSocket) | Built, in review (PR #75) | Task B5 (#36). A database trigger, `/ws` in the API, and the browser reconnects by itself. The roster screen only asks again every 30 seconds as a fallback |
 | Rate limits, real client IP | Not built | Task B7 (#38). The tunnel passes `CF-Connecting-IP` to Caddy, but nothing limits requests yet |
 | CI and load test | Not started | Task B8 (#39) |
 | Audit trigger, indexes | Not built | P5 (#40), P6 (#41) |
