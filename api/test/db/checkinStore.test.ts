@@ -8,7 +8,6 @@ import { createCheckinStore, type CheckinStore } from '../../src/checkin/checkin
 
 const testDb = inject('testDb');
 
-const INSTRUCTOR_1 = '00000000-0000-0000-0000-0000000000b1'; // seeded
 const COURSE_D2 = '00000000-0000-0000-0000-0000000000d2';
 
 // Our own room. The point is (longitude, latitude), like PostGIS wants it.
@@ -24,6 +23,7 @@ describe.skipIf(!testDb)('student check-in', () => {
   let app: pg.Pool; // like the API: RLS applies
   let store: CheckinStore;
   let room: string;
+  let teacher: string; // our own instructor, so counts in other test files stay unchanged
   let nextSectionNo = 400;
 
   const idOf = async (studentNo: string) =>
@@ -37,7 +37,7 @@ describe.skipIf(!testDb)('student check-in', () => {
       await admin.query(
         `INSERT INTO api.sections (course_id, term, section_no, instructor_id)
          VALUES ($1, '2026-4', $2, $3) RETURNING id`,
-        [COURSE_D2, nextSectionNo++, INSTRUCTOR_1],
+        [COURSE_D2, nextSectionNo++, teacher],
       )
     ).rows[0].id as string;
     for (const no of enrolled) {
@@ -49,7 +49,7 @@ describe.skipIf(!testDb)('student check-in', () => {
          SELECT $1, id, location, radius_m, $2, now() - interval '1 hour',
                 CASE WHEN $4::boolean THEN now() ELSE NULL END
          FROM api.rooms WHERE id = $3 RETURNING id`,
-        [section, INSTRUCTOR_1, room, closed],
+        [section, teacher, room, closed],
       )
     ).rows[0].id as string;
   }
@@ -63,6 +63,10 @@ describe.skipIf(!testDb)('student check-in', () => {
     admin = new pg.Pool({ connectionString: testDb!.adminUrl });
     app = new pg.Pool({ connectionString: testDb!.appUrl });
     store = createCheckinStore(app);
+    teacher = (
+      await admin.query(`INSERT INTO api.users (email, full_name) VALUES ('y4-teacher@example.test', 'Y4 Teacher') RETURNING id`)
+    ).rows[0].id;
+    await admin.query(`INSERT INTO api.user_roles (user_id, role) VALUES ($1, 'instructor')`, [teacher]);
     room = (
       await admin.query(
         `INSERT INTO api.rooms (name, location, radius_m)
