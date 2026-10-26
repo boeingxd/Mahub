@@ -1,5 +1,6 @@
 import secureSession, { type Session } from '@fastify/secure-session';
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import type { GoogleAuth, LoginChecks } from './google.js';
 import { applyLoginPolicy, homePathFor, type UserStore } from './loginPolicy.js';
 import { safeReturnTo } from './returnTo.js';
@@ -31,12 +32,14 @@ export interface AuthOptions {
   users: UserStore;
   // 32 random bytes. Anyone with this key could forge a login cookie.
   sessionKey: Buffer;
+  // Load test only (task B8): adds POST /auth/test-login. Off unless LOAD_TEST=1.
+  loadTest?: boolean;
 }
 
 const EIGHT_HOURS = 8 * 60 * 60; // seconds
 export const SCAN_SECONDS = 90;
 
-export async function registerAuth(app: FastifyInstance, { google, users, sessionKey }: AuthOptions) {
+export async function registerAuth(app: FastifyInstance, { google, users, sessionKey, loadTest }: AuthOptions) {
   const cookie = {
     path: '/',
     httpOnly: true, // page JavaScript can't read it, so an XSS bug can't steal it
@@ -109,6 +112,23 @@ export async function registerAuth(app: FastifyInstance, { google, users, sessio
     const profile = await users.getProfile(result.userId);
     return reply.redirect(login.returnTo ?? homePathFor(profile?.roles ?? []), 303);
   });
+
+  // Load test only (task B8): sign in as an email without Google, so k6 can
+  // log in hundreds of students. It still runs the real login policy and
+  // session code; only the Google step is skipped. loadConfig refuses
+  // LOAD_TEST=1 unless the redirect URI is on localhost.
+  if (loadTest) {
+    app.post('/auth/test-login', async (request, reply) => {
+      const body = z.strictObject({ email: z.string().max(254) }).safeParse(request.body);
+      if (!body.success) return reply.code(400).send({ error: 'BAD_REQUEST' });
+      const email = body.data.email.toLowerCase();
+      const result = await applyLoginPolicy({ sub: `loadtest:${email}`, email, emailVerified: true }, users);
+      if (!result.ok) return reply.code(403).send({ error: result.error });
+      request.session.regenerate();
+      request.session.set('userId', result.userId);
+      return reply.code(204).send();
+    });
+  }
 
   // POST, not GET, so a link or <img src> on another site can't log you out.
   app.post('/auth/logout', async (request, reply) => {

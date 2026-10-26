@@ -5,7 +5,11 @@ import type { FastifyInstance } from 'fastify';
 // IP or user id; nothing is written to disk or the database, and no IP is
 // logged (ADR 0006). shortcut: in-memory counters reset on restart and aren't
 // shared between API instances; fine for one container, move to Redis if we scale out.
-export const IP_LIMIT = 300; // per IP per minute, everywhere. Generous: a whole class shares one campus IP (NAT)
+// Per IP per minute, everywhere. Generous on purpose: a whole class shares one
+// campus IP (NAT), and each student makes ~5 API calls to check in. The k6 load
+// test (load/) showed 300 was too low: 617 of 904 requests were refused.
+// Change it with RATE_LIMIT_IP.
+export const IP_LIMIT = 3000;
 export const CHECKIN_LIMIT = 5; // per signed-in user per minute, on /checkin/*
 const timeWindow = '1 minute';
 
@@ -17,9 +21,9 @@ const errorResponseBuilder = () => ({ statusCode: 429 });
 // X-Forwarded-For is ignored, so it can't be used to dodge the limit.
 // It's a hook, not `global: true`, because that only covers routes declared
 // AFTER the plugin has loaded, and buildApp declares its routes straight away.
-export function registerIpLimit(app: FastifyInstance) {
+export function registerIpLimit(app: FastifyInstance, max = IP_LIMIT) {
   app.register(rateLimit, { global: false, timeWindow, errorResponseBuilder });
-  app.after(() => app.addHook('onRequest', app.rateLimit({ max: IP_LIMIT })));
+  app.after(() => app.addHook('onRequest', app.rateLimit({ max })));
 }
 
 // The tight per-user limit on /checkin/*. Per user, not per IP, so a lecture

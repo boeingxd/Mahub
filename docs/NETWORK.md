@@ -75,7 +75,7 @@ Two ways in, both ending at Caddy. Your browser uses door 1. Phones use door 2 (
 
 | Where | Limit | Counted per | Why |
 |---|---|---|---|
-| Every endpoint | 300 a minute | IP (`request.ip`, the real visitor behind Caddy) | Stops a flood from one machine. Generous, because a whole lecture hall shares one campus IP (NAT) |
+| Every endpoint | 3000 a minute (`RATE_LIMIT_IP`) | IP (`request.ip`, the real visitor behind Caddy) | Stops a flood from one machine. Generous, because a whole lecture hall shares one campus IP (NAT) and each student makes about 5 API calls to check in. The k6 load test showed that 300 was far too low (see "Load test") |
 | `/checkin/*` | 5 a minute | signed-in user | A student needs one try, a few if the signal is bad. Per user, not per IP, for the same NAT reason. Signed-out requests aren't counted here (the route answers 401) |
 
 Over the limit the API answers `429` with `{"error":"RATE_LIMITED"}`. A request to `/checkin/*` counts against both limits.
@@ -83,6 +83,40 @@ Over the limit the API answers `429` with `{"error":"RATE_LIMITED"}`. A request 
 - **Counters live in memory** and are keyed by IP or user id. Nothing is written to disk or the database, and no log line contains an IP (ADR 0006). They reset when the API restarts and aren't shared between several API containers (we run one; Redis would be the next step).
 - **A forged `X-Forwarded-For` can't dodge the per-IP limit.** The API only believes that header from Caddy's network (`TRUST_PROXY`); from anyone else `request.ip` is the real connection address. `api/test/rateLimit.test.ts` checks it, and `api/test/health.test.ts` checks the trust rule itself.
 - **Edge limit in Caddy: not done.** Caddy has no built-in rate limiter (it needs a plugin and a custom image build), so the generous per-IP limit lives in the API. It still sees the real IP because Caddy sets `X-Forwarded-For`.
+
+## Load test (k6, `load/`)
+
+Goal (issue #39): a whole class of 300 students checks in within about 30 seconds, 95% of requests answer in under 500 ms, and nothing fails.
+
+Each fake student does what a phone does, minus Google: sign in, open the scan link, send the location. They start at random moments over 25 seconds. k6 runs in Docker on the Compose network and talks to Caddy's plain-HTTP door (`http://caddy:8080`), so the traffic passes Caddy, the API and the database, like a real check-in.
+
+**Results** (laptop, Docker Desktop, 300 students, 904 requests):
+
+| | First run, per-IP limit 300/min | Second run, limit 3000/min |
+|---|---|---|
+| Check-ins recorded | 94 of 300 | **300 of 300** (300 attendance rows in the database) |
+| Requests answered `429` | 617 of 904 | 0 |
+| p95 response time | 7 ms | **8.7 ms** (limit: 500 ms) |
+| Slowest request | 31 ms | 30 ms |
+| Checks passed | 31% | **100%** |
+
+**What it found:** the first run failed on the per-IP rate limit from B7, not on speed. A whole class sits behind one campus IP, and each student makes about 3 API calls here (more on a real phone: the Google redirects and `/me`), so 300 a minute let in only about 100 students. The per-IP limit is now 3000 a minute (`RATE_LIMIT_IP`). The real protection against abuse is the per-user limit of 5 a minute on `/checkin/*`.
+
+**What this does not prove:** it ran on one laptop with fake sign-in (`POST /auth/test-login`), so Google's own speed and a real mobile network aren't included. Rows are inserted by one API process with a pool of 10 database connections; it was nowhere near that limit (p95 under 10 ms).
+
+**Run it yourself** (needs the stack running, with `LOAD_TEST=1`):
+
+```bash
+# 1. Load the base seed, then the 300 students (a local database only!)
+docker compose exec -T db psql -U postgres -d mahub -v ON_ERROR_STOP=1 < db/seeds/seed.sql
+docker compose exec -T db psql -U postgres -d mahub -v ON_ERROR_STOP=1 < load/seed.sql
+# 2. Start the stack with the test login on (it refuses unless the Google redirect URI is on localhost)
+LOAD_TEST=1 docker compose up -d --build
+# 3. Run k6 (QR_SECRET is the one in your .env)
+docker run --rm -i --network mahub_frontend -e QR_SECRET=<your QR_SECRET> -v "$PWD/load:/load:ro" grafana/k6 run /load/checkin.js
+```
+
+If the run stops at `SESSION_ALREADY_OPEN`, a window from an earlier run is still open: close it in the app first. Turn `LOAD_TEST` off again afterwards (`docker compose up -d`).
 
 ## Trust Caddy's certificate on your Mac (once)
 

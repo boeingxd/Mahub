@@ -52,6 +52,7 @@ services:
       # Believe the X-Forwarded-For header (the real visitor IP) only when the
       # request comes from the frontend network, i.e. from Caddy.
       TRUST_PROXY: 172.28.1.0/24
+      RATE_LIMIT_IP: ${RATE_LIMIT_IP:-3000}
       # Google sign-in (task Y1), from .env. In Docker the browser reaches the
       # API through Caddy, so the callback is under /api.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
@@ -59,6 +60,8 @@ services:
       GOOGLE_REDIRECT_URI: ${DOCKER_GOOGLE_REDIRECT_URI:-https://localhost/api/auth/callback}
       SESSION_KEY: ${SESSION_KEY}
       QR_SECRET: ${QR_SECRET}
+      # Load test only (task B8, load/): LOAD_TEST=1 adds a login without Google.
+      LOAD_TEST: ${LOAD_TEST:-}
     depends_on:
       db:
         condition: service_healthy
