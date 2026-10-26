@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { registerAuth, type AuthOptions } from './auth/routes.js';
 import { registerCheckin, type CheckinOptions } from './checkin/routes.js';
 import type { Queryable } from './db.js';
+import { registerCheckinLimit, registerIpLimit } from './rateLimit.js';
 import { registerReports, type ReportsOptions } from './reports/routes.js';
 import { registerSections, type SectionsOptions } from './sections/routes.js';
 
@@ -45,6 +46,8 @@ export function buildApp({ db, logLevel = 'info', trustProxy = '', auth, checkin
     genReqId: () => randomUUID(),
   });
 
+  registerIpLimit(app); // before any route, so it covers all of them
+
   // Send the ID back to the client too, so a bug report can quote it.
   app.addHook('onSend', async (request, reply) => {
     reply.header('x-request-id', request.id);
@@ -70,6 +73,7 @@ export function buildApp({ db, logLevel = 'info', trustProxy = '', auth, checkin
   if (auth) {
     app.register(async (scope) => {
       await registerAuth(scope, auth);
+      registerCheckinLimit(scope); // needs the session cookie from registerAuth
       if (checkin) await registerCheckin(scope, checkin);
       if (sections) await registerSections(scope, sections);
       if (reports) await registerReports(scope, reports);
@@ -82,7 +86,8 @@ export function buildApp({ db, logLevel = 'info', trustProxy = '', auth, checkin
   app.setErrorHandler((err: { statusCode?: number }, request, reply) => {
     const status = err.statusCode && err.statusCode < 500 ? err.statusCode : 500;
     if (status === 500) request.log.error({ err }, 'unhandled error');
-    return reply.code(status).send({ error: status === 500 ? 'INTERNAL' : 'BAD_REQUEST' });
+    const error = status === 500 ? 'INTERNAL' : status === 429 ? 'RATE_LIMITED' : 'BAD_REQUEST';
+    return reply.code(status).send({ error });
   });
 
   return app;

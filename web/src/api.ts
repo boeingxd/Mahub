@@ -89,6 +89,7 @@ export const errorText: Record<string, { title: string; message: string }> = {
   ROOM_NOT_FOUND: { title: 'Room not found', message: 'Pick a room from the list and try again.' },
   SESSION_ALREADY_OPEN: { title: 'Already open', message: 'This class already has a check-in open.' },
   SESSION_CLOSED: { title: 'Already closed', message: 'This check-in has already ended.' },
+  RATE_LIMITED: { title: 'Too many tries', message: 'Wait a minute and try again.' },
   INTERNAL: { title: 'Something went wrong on our side', message: 'Try again in a moment.' },
 };
 

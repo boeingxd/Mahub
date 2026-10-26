@@ -17,6 +17,7 @@ One format for every error: `{"error": "CODE"}`. The code is for the screen to t
 | 404 | `NOT_ENROLLED` | The student you tried to mark is not in this section |
 | 409 | `SESSION_ALREADY_OPEN` | That section already has an open check-in window |
 | 409 | `SESSION_CLOSED` | The window is already closed |
+| 429 | `RATE_LIMITED` | Too many requests. Per IP on every endpoint (300 a minute); per signed-in user on `/checkin/*` (5 a minute). See `docs/NETWORK.md` |
 | 500 | `INTERNAL` | Our bug. Details are in the server log, never in the reply |
 
 ## Sections and check-in windows (P3)

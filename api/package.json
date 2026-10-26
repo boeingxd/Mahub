@@ -15,6 +15,7 @@
     "db:dev-instructor": "node --env-file=../.env --import tsx scripts/dev-instructor.ts"
   },
   "dependencies": {
+    "@fastify/rate-limit": "^11.2.1",
     "@fastify/secure-session": "^8.4.1",
     "fastify": "^5.12.5",
     "openid-client": "^6.8.8",
