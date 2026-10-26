@@ -23,7 +23,7 @@ One format for every error: `{"error": "CODE"}`. The code is for the screen to t
 | 409 | `SESSION_CLOSED` | The window is already closed |
 | 409 | `ALREADY_PRESENT` | Check-in: you are already marked for this window |
 | 422 | `OUT_OF_RANGE` | Check-in: you are too far from the room |
-| 429 | `RATE_LIMITED` | Too many requests. Per IP on every endpoint (300 a minute); per signed-in user on `/checkin/*` (5 a minute). See `docs/NETWORK.md` |
+| 429 | `RATE_LIMITED` | Too many requests. Per IP on every endpoint (3000 a minute); per signed-in user on `/checkin/*` (5 a minute). See `docs/NETWORK.md` |
 | 500 | `INTERNAL` | Our bug. Details are in the server log, never in the reply |
 
 ## Sign-in (Y1)

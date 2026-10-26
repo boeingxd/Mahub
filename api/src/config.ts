@@ -31,6 +31,16 @@ const ConfigSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, 'must be 64 hex characters (32 bytes)')
     .refine((k) => !/^0+$/.test(k), 'must be random, not all zeros'),
+  // Requests per minute per IP, on every endpoint (docs/NETWORK.md, "Rate limits").
+  RATE_LIMIT_IP: z.coerce.number().int().min(1).default(3000),
+  // Load test only (task B8): "1" adds POST /auth/test-login, a login with no
+  // Google. Empty (the default) means the route doesn't exist.
+  LOAD_TEST: z.enum(['', '1']).default(''),
+}).refine((c) => c.LOAD_TEST === '' || new URL(c.GOOGLE_REDIRECT_URI).hostname === 'localhost', {
+  // A real deployment has a real domain (or the tunnel address) here, so it
+  // can't be started with the test login by mistake.
+  path: ['LOAD_TEST'],
+  message: 'only allowed when GOOGLE_REDIRECT_URI is on localhost',
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

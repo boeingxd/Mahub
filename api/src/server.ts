@@ -18,6 +18,7 @@ const app = buildApp({
   db: pool,
   logLevel: config.LOG_LEVEL,
   trustProxy: config.TRUST_PROXY,
+  ipLimit: config.RATE_LIMIT_IP,
   auth: {
     google: createGoogleAuth({
       clientId: config.GOOGLE_CLIENT_ID,
@@ -26,12 +27,15 @@ const app = buildApp({
     }),
     users: createUserStore(pool),
     sessionKey: Buffer.from(config.SESSION_KEY, 'hex'),
+    loadTest: config.LOAD_TEST === '1',
   },
   checkin: { qrSecret: config.QR_SECRET, store: qrStore, checkins: createCheckinStore(pool) },
   sections: { store: createSectionsStore(pool) },
   reports: { store: createReportsStore(pool) },
   realtime: { hub, store: qrStore },
 });
+
+if (config.LOAD_TEST === '1') app.log.warn('LOAD_TEST is on: POST /auth/test-login lets anyone sign in. Never use this for real.');
 
 // The live roster (task B5): one connection that LISTENs for attendance changes.
 const listener = listenToRoster(
