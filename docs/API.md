@@ -308,7 +308,7 @@ Channel `roster`, payload is JSON text (Postgres limits it to 8000 bytes; this o
 ### `GET /ws` (WebSocket upgrade)
 
 - **Who:** a signed-in user. The browser sends its normal session cookie with the upgrade; there is no token in the address. No cookie: the server closes the socket with code `4401`.
-- **Origin check:** the server refuses an upgrade whose `Origin` header is not our own site (close code `4403`), so another website can't open the socket with the visitor's cookie.
+- **Origin check:** the server refuses an upgrade whose `Origin` header is not our own site (close code `4403`), so another website can't open the socket with the visitor's cookie. "Our own site" is not a fixed list, because the Cloudflare Tunnel address changes every restart: the server compares the **host (and port) of `Origin` with the `Host` header of the same request**, and they must be equal. Caddy passes `Host` through unchanged, so this works for `localhost` and for any tunnel address. A request with no `Origin` header is refused too (browsers always send one on a WebSocket upgrade).
 - **Caddy** already forwards `/ws` to the API with the path unchanged (no `/api` prefix).
 
 **Browser to server.** One kind of message, sent after connecting (and again after every reconnect):
@@ -318,6 +318,8 @@ Channel `roster`, payload is JSON text (Postgres limits it to 8000 bytes; this o
 ```
 
 Allowed only if the signed-in user is the instructor of that window's section (checked in `withUser`, the same rule as the roster). If not, the server sends `{"error": "FORBIDDEN"}` and closes with `4403`; it does not say whether the id exists. A malformed message gets `{"error": "BAD_REQUEST"}` (zod-checked). One socket subscribes to one window; to switch, open a new socket.
+
+**Limits on what the browser sends.** A message larger than **1 KB** is refused: the server closes the socket with code `1009` (message too big); the one real message is about 60 bytes. If no valid `subscribe` arrives within **10 s** of connecting, the server closes the socket with code `4408`, so an idle connection can't be held open for free.
 
 **Server to browser.** JSON messages with a `type`:
 
