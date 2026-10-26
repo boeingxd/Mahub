@@ -11,6 +11,11 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 const testDb = inject('testDb');
 
 const DB = 'mahub_notify_test';
+// Dropping the database kills connections that are still shutting down. By then
+// the pool has let go of them, so nobody listens for their error and Vitest
+// reports an "unhandled error" (seen on CI). Listen for it on every connection.
+const quietly = (pool: pg.Pool) => void pool.on('connect', (c) => c.on('error', () => {}));
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const inDb = (url: string) => {
   const u = new URL(url);
   u.pathname = `/${DB}`;
@@ -44,6 +49,8 @@ describe.skipIf(!testDb)('roster NOTIFY trigger', () => {
 
     admin = new pg.Pool({ connectionString: inDb(testDb!.adminUrl) });
     app = new pg.Pool({ connectionString: inDb(testDb!.appUrl) });
+    quietly(admin);
+    quietly(app);
     const id = async (sql: string, params: unknown[] = []) => (await admin.query(sql, params)).rows[0].id as string;
     instructor = await id(`INSERT INTO api.users (email, full_name) VALUES ('b5-instructor@example.test', 'B5 Instructor') RETURNING id`);
     student = await id(`INSERT INTO api.users (email, full_name) VALUES ('6799999999@g.siit.tu.ac.th', 'B5 Student') RETURNING id`);
@@ -64,6 +71,7 @@ describe.skipIf(!testDb)('roster NOTIFY trigger', () => {
     );
 
     listener = new pg.Client({ connectionString: inDb(testDb!.appUrl) });
+    listener.on('error', () => {});
     await listener.connect();
     listener.on('notification', (m) => heard.push(JSON.parse(m.payload ?? '{}')));
     await listener.query('LISTEN roster');
@@ -73,6 +81,12 @@ describe.skipIf(!testDb)('roster NOTIFY trigger', () => {
     await listener?.end();
     await app?.end();
     await admin?.end();
+    // Wait until Postgres has really closed our connections before dropping the database.
+    for (let i = 0; i < 100 && server; i++) {
+      const { rows } = await server.query('SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = $1', [DB]);
+      if (rows[0].n === 0) break;
+      await sleep(50);
+    }
     await server?.query(`DROP DATABASE IF EXISTS ${DB} WITH (FORCE)`);
     await server?.end();
   });
