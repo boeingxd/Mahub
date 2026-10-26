@@ -87,7 +87,8 @@ export const errorText: Record<string, { title: string; message: string }> = {
   NOT_FOUND: { title: 'Not found', message: "That class or check-in doesn't exist, or it isn't yours." },
   NOT_ENROLLED: {
     title: 'Not in this class',
-    message: "This account isn't enrolled in this section. Ask your instructor if you think that's wrong.",
+    // Shared: a student checking in, and an instructor marking someone by hand.
+    message: "That account isn't enrolled in this section. The instructor can check the class list.",
   },
   QR_EXPIRED: { title: 'That QR has expired', message: 'Scan the QR code on the screen again.' },
   OUT_OF_RANGE: {
