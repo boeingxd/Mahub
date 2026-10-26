@@ -15,6 +15,9 @@ const statusLabel: Record<RosterStatus, string> = {
   absent: 'Absent',
 };
 
+// One row of the roster. studentId is there when the row came from the API.
+export type RosterRow = FakeRosterRow & { studentId?: string };
+
 // A student's status right now, and whether a person set it by hand
 // (attendance.method = 'manual') rather than a QR scan.
 interface Mark {
@@ -23,7 +26,7 @@ interface Mark {
 }
 
 // What the scans alone say: present if they checked in by QR, otherwise absent.
-function scanned(r: FakeRosterRow): RosterStatus {
+function scanned(r: RosterRow): RosterStatus {
   return r.manual ? 'absent' : r.status;
 }
 
@@ -32,20 +35,34 @@ function scanned(r: FakeRosterRow): RosterStatus {
 // never on the projector (the class shouldn't see who's missing).
 //
 // "Change" lets the instructor mark a student by hand: present (e.g. their
-// phone died) or excused (e.g. a medical note). For now marks live only in
-// this page; saving them arrives with task P4.
-export function RosterTable({ rows, live = false }: { rows: FakeRosterRow[]; live?: boolean }) {
+// phone died) or excused (e.g. a medical note).
+//   With onMark: the choice is saved by the API, and `rows` is the truth.
+//   Without onMark (sample screens): marks live only in this page.
+export function RosterTable({
+  rows,
+  live = false,
+  onMark,
+}: {
+  rows: RosterRow[];
+  live?: boolean;
+  onMark?: (row: RosterRow, status: 'present' | 'excused') => void;
+}) {
   const [marks, setMarks] = useState<Record<string, Mark>>({});
-  const [editing, setEditing] = useState<FakeRosterRow | null>(null);
+  const [editing, setEditing] = useState<RosterRow | null>(null);
 
-  const current = (r: FakeRosterRow): Mark => marks[r.studentNo] ?? { status: r.status, manual: !!r.manual };
+  const current = (r: RosterRow): Mark =>
+    onMark ? { status: r.status, manual: !!r.manual } : (marks[r.studentNo] ?? { status: r.status, manual: !!r.manual });
 
-  function setMark(r: FakeRosterRow, mark: Mark) {
-    setMarks((m) => ({ ...m, [r.studentNo]: mark }));
+  function setMark(r: RosterRow, mark: Mark) {
+    if (onMark) {
+      if (mark.status !== 'absent') onMark(r, mark.status);
+    } else {
+      setMarks((m) => ({ ...m, [r.studentNo]: mark }));
+    }
     setEditing(null);
   }
 
-  const columns: Column<FakeRosterRow>[] = [
+  const columns: Column<RosterRow>[] = [
     { header: 'Student no.', cell: (r) => <span className="mono">{r.studentNo}</span>, hideOnPhone: true },
     {
       header: 'Name',
@@ -92,7 +109,8 @@ export function RosterTable({ rows, live = false }: { rows: FakeRosterRow[]; liv
     const m = current(editing);
     if (m.status !== 'present') actions.push({ label: 'Mark present', onSelect: () => setMark(editing, { status: 'present', manual: true }) });
     if (m.status !== 'excused') actions.push({ label: 'Mark excused', onSelect: () => setMark(editing, { status: 'excused', manual: true }) });
-    if (m.manual)
+    // Clearing a mark isn't in the API yet (docs/API.md, "Not decided yet").
+    if (m.manual && !onMark)
       actions.push({
         label: 'Clear mark',
         destructive: true,
@@ -106,7 +124,7 @@ export function RosterTable({ rows, live = false }: { rows: FakeRosterRow[]; liv
       <ActionSheet
         open={editing !== null}
         title={editing ? `${editing.name} · ${editing.studentNo}` : ''}
-        message="Sample data: marks aren't saved yet (task P4)."
+        message={onMark ? undefined : "Sample data: marks aren't saved."}
         actions={actions}
         onCancel={() => setEditing(null)}
       />

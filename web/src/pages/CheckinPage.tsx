@@ -1,40 +1,46 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { apiPost, errorCode } from '../api';
 import { fakeSections, fakeStudent } from '../fakeData';
-import { AlertIcon, Button, ButtonRoute, CheckIcon, LocationIcon, Pass } from '../ui';
+import { AlertIcon, Button, ButtonRoute, CheckIcon, ErrorBox, LocationIcon, Pass } from '../ui';
 
-type LocationState =
+type CheckinState =
   | { step: 'idle' }
-  | { step: 'asking' }
-  | { step: 'located'; accuracy: number; at: string }
-  | { step: 'error'; title: string; message: string };
+  | { step: 'asking' } // waiting for the phone's location
+  | { step: 'sending' } // location found, waiting for the server's answer
+  | { step: 'done'; distance: number | null } // distance is null when it was already recorded
+  | { step: 'locationError'; title: string; message: string } // the phone couldn't give a location
+  | { step: 'apiError'; code: string }; // the server said no; errorText turns the code into words
 
-function timeNow(ms: number) {
-  return new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); // 24 h, e.g. 09:02
+interface CheckinAnswer {
+  result: 'present';
+  distance_m: number;
 }
 
+// The scan link (/c/...) can send the student here with an error already known.
+const SCAN_ERRORS = ['QR_EXPIRED', 'SESSION_CLOSED'];
+
 // The page a student lands on after scanning the QR (and signing in).
-// One action: share location. Then their class pass slides up: done.
+// One action: share location. The server then decides and records attendance.
 // Built for a phone first; there's no tab bar here, students arrive from the QR.
 export function CheckinPage() {
-  const [state, setState] = useState<LocationState>({ step: 'idle' });
   const [params] = useSearchParams();
   // ?preview=done shows the finished "Checked in" pass with sample data, so the
-  // team can see it before the check-in API (task Y4) exists.
+  // team can see it without scanning a QR.
   const preview = params.get('preview') === 'done';
-  // Sample class until the scan link carries the real session (task B6).
-  const section = fakeSections[0];
-  const [today] = useState(() =>
-    new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+  // /checkin?error=QR_EXPIRED: show that straight away instead of asking for a location.
+  const scanError = params.get('error');
+  const [state, setState] = useState<CheckinState>(() =>
+    scanError && SCAN_ERRORS.includes(scanError) ? { step: 'apiError', code: scanError } : { step: 'idle' },
   );
+  const section = fakeSections[0]; // preview only
 
-  // Temporary test: does this browser let us ask for location? Phones only
-  // allow it over HTTPS (task B4 tests it on a real phone). Nothing is sent
-  // anywhere yet; the real check-in call arrives with task B6.
+  // Ask the phone where it is (HTTPS only), then send it to the server.
+  // The class and the student come from cookies, not from this request.
   function shareLocation() {
     if (!('geolocation' in navigator)) {
       setState({
-        step: 'error',
+        step: 'locationError',
         title: 'No location on this browser',
         message: 'Open this page in Safari or Chrome, or ask your instructor to mark you present.',
       });
@@ -42,17 +48,31 @@ export function CheckinPage() {
     }
     setState({ step: 'asking' });
     navigator.geolocation.getCurrentPosition(
-      (pos) => setState({ step: 'located', accuracy: Math.round(pos.coords.accuracy), at: timeNow(pos.timestamp) }),
+      async ({ coords }) => {
+        setState({ step: 'sending' });
+        try {
+          const answer = await apiPost<CheckinAnswer>('/checkin/complete', {
+            lat: coords.latitude,
+            lng: coords.longitude,
+            accuracy: Math.min(coords.accuracy, 5000), // the server rejects anything above 5000
+          });
+          setState({ step: 'done', distance: answer.distance_m });
+        } catch (e) {
+          const code = errorCode(e);
+          // Already checked in is good news, not an error.
+          setState(code === 'ALREADY_PRESENT' ? { step: 'done', distance: null } : { step: 'apiError', code });
+        }
+      },
       (err) =>
         setState(
           err.code === err.PERMISSION_DENIED
             ? {
-                step: 'error',
+                step: 'locationError',
                 title: 'Location is turned off for Mahub',
                 message: 'Allow location for this site in your browser settings, then try again.',
               }
             : {
-                step: 'error',
+                step: 'locationError',
                 title: "Couldn't find your location",
                 message: 'Move nearer a window or turn on Wi-Fi, then try again.',
               },
@@ -60,8 +80,6 @@ export function CheckinPage() {
       { enableHighAccuracy: true, timeout: 15000 },
     );
   }
-
-  const asking = state.step === 'asking';
 
   if (preview) {
     return (
@@ -89,36 +107,38 @@ export function CheckinPage() {
     );
   }
 
+  const busy = state.step === 'asking' || state.step === 'sending';
+  // The scan is used up after most errors, so the student has to scan the QR again.
+  // OUT_OF_RANGE keeps it for 90 s, so a retry with better GPS is allowed.
+  const canRetry = state.step === 'locationError' || (state.step === 'apiError' && state.code === 'OUT_OF_RANGE');
+  const showButton = state.step === 'idle' || busy || canRetry;
+  const buttonText =
+    state.step === 'asking'
+      ? 'Finding you…'
+      : state.step === 'sending'
+        ? 'Checking in…'
+        : canRetry
+          ? 'Try again'
+          : 'Share my location';
+
   return (
     <div className="phone-screen">
       <h1 className="large-title">Check in</h1>
 
-      <Pass
-        color={section.color}
-        code={section.course}
-        corner={<span className="mono">{today}</span>}
-        title={section.name}
-        headingLevel="h2"
-        fields={[
-          { label: 'Section', value: section.sectionNo, mono: true },
-          { label: 'Room', value: section.room ?? '—' },
-        ]}
-      />
-
-      {state.step !== 'located' && (
+      {showButton && (
         <>
           <p className="footnote">
             We check that you're in the classroom. Your exact location is never stored, only how far you are from the
             room.
           </p>
-          <Button className="button-block" onClick={shareLocation} disabled={asking} aria-busy={asking}>
+          <Button className="button-block" onClick={shareLocation} disabled={busy} aria-busy={busy}>
             <LocationIcon />
-            {asking ? 'Finding you…' : state.step === 'error' ? 'Try again' : 'Share my location'}
+            {buttonText}
           </Button>
         </>
       )}
 
-      {state.step === 'error' && (
+      {state.step === 'locationError' && (
         <div className="inline-alert" role="alert">
           <AlertIcon className="inline-alert-icon" />
           <div>
@@ -128,24 +148,24 @@ export function CheckinPage() {
         </div>
       )}
 
-      {state.step === 'located' && (
-        // For now this only confirms the location; recording attendance (and the
-        // "Checked in" pass, see ?preview=done) arrives with task B6.
+      {state.step === 'apiError' && <ErrorBox code={state.code} />}
+
+      {state.step === 'done' && (
         <section className="result" aria-live="polite" aria-label="Result">
           <div className="result-card pass-enter">
             <CheckIcon className="result-icon" />
             <div>
-              <p className="result-title">Location found</p>
-              <p className="result-text">
-                Accurate to <span className="mono">±{state.accuracy} m</span> at <span className="mono">{state.at}</span>.
-              </p>
+              <p className="result-title">{state.distance === null ? "You're already checked in" : "You're checked in"}</p>
+              {state.distance !== null && (
+                <p className="result-text">
+                  You're <span className="mono">{Math.round(state.distance)} m</span> from the room.
+                </p>
+              )}
             </div>
           </div>
-          <p className="footnote">Sample class. Recording attendance arrives with the check-in API; nothing was sent.</p>
+          <p className="footnote">You can close this page.</p>
         </section>
       )}
-
-      {state.step === 'idle' && <p className="footnote">Sample class for now: the real one comes from the QR you scanned.</p>}
     </div>
   );
 }

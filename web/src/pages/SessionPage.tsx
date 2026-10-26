@@ -1,21 +1,46 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
-import { fakeRoster } from '../fakeData';
-import { sampleSession } from '../sampleSession';
-import { BackIcon, Button, Card, ConfirmDialog, ProjectorIcon, SegmentedControl } from '../ui';
-import { RosterTable } from './RosterPage';
+import { Link, Navigate, useNavigate, useParams } from 'react-router';
+import { apiPost, errorCode, firstNotDone } from '../api';
+import { passColor } from '../passColor';
+import { toRosterRows, useLiveSession, hhmm } from '../useLiveSession';
+import {
+  ApiStatus,
+  BackIcon,
+  Button,
+  Card,
+  ConfirmDialog,
+  ErrorBox,
+  LiveQr,
+  ProjectorIcon,
+  SegmentedControl,
+} from '../ui';
+import { RosterTable, type RosterRow } from './RosterPage';
 
 type View = 'checkin' | 'roster';
+
+export function SessionPage() {
+  const { id = '' } = useParams();
+  return <LiveSession id={id} />;
+}
 
 // The live session, on the instructor's laptop (which is usually mirrored to
 // the projector). "Check-in" shows only what the class may see: the QR and the
 // count. "Roster" shows names, for the instructor's eyes.
-export function SessionPage() {
-  const { id } = useParams();
+function LiveSession({ id }: { id: string }) {
   const navigate = useNavigate();
   const [view, setView] = useState<View>('checkin');
   const [confirming, setConfirming] = useState(false);
-  const { section, startedAt, checkedIn } = sampleSession(id);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const { session, sections, roster, section, retry } = useLiveSession(id);
+
+  const notReady = firstNotDone(session.state, sections.state, roster.state);
+  if (notReady) return <ApiStatus state={notReady} retry={retry} />;
+  if (session.state.status !== 'done' || roster.state.status !== 'done') return null; // for TypeScript
+  if (!section) return <ApiStatus state={{ status: 'error', code: 'NOT_FOUND' }} retry={retry} />;
+  // A closed window has nothing live left to show.
+  if (session.state.data.closed_at) return <Navigate to={`/summary/${id}`} replace />;
+
+  const { counts, students } = roster.state.data;
 
   function present() {
     // Real full screen needs a click to start it, so ask here, then show the
@@ -24,10 +49,26 @@ export function SessionPage() {
     navigate(`/projector/${id}`);
   }
 
-  function endSession() {
-    // The real call (task P3) closes the window; then show the summary.
+  async function endSession() {
     setConfirming(false);
-    navigate(`/summary/${id}`);
+    try {
+      await apiPost(`/class-sessions/${id}/close`);
+      navigate(`/summary/${id}`);
+    } catch (e) {
+      // Already closed (maybe on another screen): the summary is the right place anyway.
+      if (errorCode(e) === 'SESSION_CLOSED') navigate(`/summary/${id}`);
+      else setActionError(errorCode(e));
+    }
+  }
+
+  async function mark(row: RosterRow, status: 'present' | 'excused') {
+    try {
+      await apiPost(`/class-sessions/${id}/attendance`, { student_id: row.studentId, status });
+      setActionError(null);
+      roster.refresh();
+    } catch (e) {
+      setActionError(errorCode(e));
+    }
   }
 
   return (
@@ -37,15 +78,15 @@ export function SessionPage() {
         My classes
       </Link>
 
-      <header className={`session-head pass-${section.color}`}>
+      <header className={`session-head pass-${passColor(section.course_code)}`}>
         <div>
-          <h1 className="session-title">{section.name}</h1>
+          <h1 className="session-title">{section.course_name}</h1>
           <p className="session-sub">
-            {section.course} · Section {section.sectionNo}
+            {section.course_code} · Section {section.section_no}
           </p>
           <p className="session-meta">
             <span className="live-dot" aria-hidden="true" />
-            Check-in open · started {startedAt}
+            Check-in open · started {hhmm(session.state.data.opened_at)}
           </p>
         </div>
         <SegmentedControl
@@ -59,17 +100,18 @@ export function SessionPage() {
         />
       </header>
 
+      {actionError && <ErrorBox code={actionError} />}
+
       {view === 'checkin' ? (
         <section className="session-board" aria-label="Check-in">
           <div className="qr-tile">
-            {/* The rotating QR code goes here (tasks Y3 and B6). It sits on pure
-                white with a margin around it, which phone cameras need to read it. */}
-            <span className="qr-placeholder">QR code</span>
+            {/* It sits on pure white with a margin around it, which phone cameras need to read it. */}
+            <LiveQr sessionId={id} />
           </div>
           <div className="session-count">
             <p className="count" aria-live="polite">
-              <span className="count-now">{checkedIn}</span>
-              <span className="count-of"> / {section.enrolled}</span>
+              <span className="count-now">{counts.present}</span>
+              <span className="count-of"> / {counts.enrolled}</span>
             </p>
             <p className="count-label">checked in</p>
             <p className="session-hint">Scan with your phone camera, then sign in with your SIIT account.</p>
@@ -80,8 +122,8 @@ export function SessionPage() {
           </div>
         </section>
       ) : (
-        <Card title="Students" footer="Sample roster: 5 of the class. Updates live once the WebSocket (task B5) lands.">
-          <RosterTable rows={fakeRoster} live />
+        <Card title="Students" footer="Refreshes every few seconds.">
+          <RosterTable rows={toRosterRows(students)} live onMark={mark} />
         </Card>
       )}
 
@@ -93,7 +135,7 @@ export function SessionPage() {
 
       <ConfirmDialog
         open={confirming}
-        title={`End check-in for ${section.course}?`}
+        title={`End check-in for ${section.course_code}?`}
         message="Students can't check in after this. Anyone who hasn't checked in will be marked absent."
         confirmLabel="End session"
         onConfirm={endSession}
