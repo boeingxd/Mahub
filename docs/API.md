@@ -1,6 +1,6 @@
 # API contract
 
-Every endpoint the demo needs: who may call it, what to send, what comes back. Built from task A1 (#24). Written so far: sign-in, the QR and student check-in, and the instructor endpoints. The live-roster (WebSocket) section and the student endpoints are still to be added.
+Every endpoint the demo needs: who may call it, what to send, what comes back. Built from task A1 (#24). Written so far: sign-in, the QR and student check-in, the instructor endpoints and the live roster (WebSocket, proposed). The student endpoints are still to be added.
 
 Caddy strips `/api` before the request reaches the API, so inside the API a route is `/my/sections`, but the browser calls `/api/my/sections`. Paths below are the browser's.
 
@@ -282,6 +282,57 @@ Response `200`:
 ```
 
 Errors: `400` (including `status: "absent"`, which is not a status; to leave someone absent, don't mark them), `401`, `403`, `404 NOT_ENROLLED` (that student is not in this section).
+
+## Live roster (WebSocket) (B5)
+
+The instructor's roster updates the moment a student checks in or is marked by hand, without asking again. **Proposed in task A1 (#24); boeingxd (builds `/ws`) and Yayikast (security) still need to approve it.**
+
+How it flows: a trigger on `api.attendance` calls `pg_notify('roster', …)` after every INSERT or UPDATE. The API holds one dedicated database connection that runs `LISTEN roster`, and forwards each message to the browsers subscribed to that window. The database never talks to a browser directly.
+
+### The Postgres NOTIFY payload
+
+Channel `roster`, payload is JSON text (Postgres limits it to 8000 bytes; this one is about 200):
+
+```json
+{
+  "class_session_id": "…",
+  "student_id": "…",
+  "status": "present",
+  "method": "qr",
+  "recorded_at": "2026-10-26T02:03:11.000Z"
+}
+```
+
+`status` is `present` or `excused`, `method` is `qr` or `manual`. On purpose there is **no name, no distance and no GPS** in it: a NOTIFY goes to every listener, and the browser already has the names from `GET /api/class-sessions/:id/roster`. Absent is never sent, because absent is never stored.
+
+### `GET /ws` (WebSocket upgrade)
+
+- **Who:** a signed-in user. The browser sends its normal session cookie with the upgrade; there is no token in the address. No cookie: the server closes the socket with code `4401`.
+- **Origin check:** the server refuses an upgrade whose `Origin` header is not our own site (close code `4403`), so another website can't open the socket with the visitor's cookie.
+- **Caddy** already forwards `/ws` to the API with the path unchanged (no `/api` prefix).
+
+**Browser to server.** One kind of message, sent after connecting (and again after every reconnect):
+
+```json
+{ "subscribe": "<class_session_id>" }
+```
+
+Allowed only if the signed-in user is the instructor of that window's section (checked in `withUser`, the same rule as the roster). If not, the server sends `{"error": "FORBIDDEN"}` and closes with `4403`; it does not say whether the id exists. A malformed message gets `{"error": "BAD_REQUEST"}` (zod-checked). One socket subscribes to one window; to switch, open a new socket.
+
+**Server to browser.** JSON messages with a `type`:
+
+| `type` | When | Fields |
+|---|---|---|
+| `subscribed` | The subscription was accepted | `class_session_id` |
+| `roster` | A student was marked present or excused (the NOTIFY payload above, forwarded) | `class_session_id`, `student_id`, `status`, `method`, `recorded_at` |
+| `closed` | The instructor closed that window (sent by the API itself when `POST /class-sessions/:id/close` succeeds, so it needs no database trigger) | `class_session_id` |
+| `error` | See above | `error` (an error code from the table at the top) |
+
+The screen updates the one student named in a `roster` message and recalculates the counts itself from its roster list. (Counts shown on the screen are only for display; the summary page still reads them from the roster view.)
+
+**Heartbeat.** The server sends a WebSocket ping every 20 s and drops a client that doesn't answer (browsers answer pings by themselves).
+
+**Reconnecting.** Messages are not replayed. The browser reconnects after a drop, waiting 1 s, 2 s, 4 s … (at most 30 s) between tries. After each successful reconnect it sends `subscribe` again and then **fetches `GET /api/class-sessions/:id/roster` once**, so anything missed while disconnected shows up. Until the socket works, the screen may keep polling that endpoint (today it does, every 5 s).
 
 ## Not decided yet
 
