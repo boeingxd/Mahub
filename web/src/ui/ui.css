@@ -1329,6 +1329,12 @@ a {
     padding-inline: var(--space-2);
   }
 
+  /* A very long name (one word with no spaces) would set the table's minimum
+     width and push "Change" out of the card. Let it break only when it has to. */
+  .name-cell {
+    overflow-wrap: anywhere;
+  }
+
   .table th:first-child,
   .table td:first-child {
     padding-left: var(--space-4);
