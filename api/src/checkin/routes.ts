@@ -26,7 +26,7 @@ const ClassSessionId = z.object({ id: z.uuid() });
 // app's `lat: "x"` (which became NaN and skipped the GPS check) is a 400
 // here. .strict() refuses extra fields too: the client can't send a
 // "status" or a "student_id" and hope it gets used.
-const CheckinBody = z
+export const CheckinBody = z
   .object({
     lat: z.number().min(-90).max(90),
     lng: z.number().min(-180).max(180),
