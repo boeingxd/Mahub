@@ -197,6 +197,146 @@ Response `200`: the same shape as above.
 
 Errors: `400`, `401`, `403`.
 
+## Student endpoints (B6)
+
+For the three student screens: My classes, Overview and Class detail (`docs/SCREENS.md`). **Proposed in task A1 (#24); boeingxd (builds the screens) and Yayikast (security) need to approve it before any code is written.**
+
+The rules are the same as everywhere else:
+
+- **Who is asking comes from the login cookie only.** No endpoint takes a `student_id`; a student can't ask about someone else because there is nothing to put it in.
+- **Row-level security decides what they can see**: a student's own enrollments, the windows of their own sections, and their own attendance rows. The queries also say `WHERE student_id = <me>` themselves (the policy alone would still be correct, but would be slow: see `docs/PERFORMANCE.md`).
+- **Absent is never stored.** A window you are enrolled for, with no row of yours in `attendance`, is absent.
+- **Rates come from SQL views**, never from the browser. They are the same rule as the instructor's report (`v_section_attendance_rate`):
+
+  > rate = windows attended / (windows held − windows excused), as a percentage with one decimal.
+
+  So an **excused** window counts neither for nor against you: it is taken out of the bottom line. If nothing is left to divide by (no windows yet, or all excused), `rate_pct` is `null` and the screen shows "—", not 0.
+- **Never any GPS.** No `distance_m`, `gps_accuracy_m`, room coordinates or `recorded_by` is returned, only who/when/status.
+- "Windows held" are all of the section's check-in windows, including one that is still open (same as the instructor's report). The windows list below marks the open one, so the screen can say "Open now" instead of "Absent".
+- Times are ISO 8601 UTC strings. The screen formats them (date, and 24 h time) in the viewer's time zone, like the instructor screens do.
+- The pass colour is not sent: the screen derives it from `course_code`, as it does today.
+
+### `GET /api/my/classes`
+
+My classes: every section I am enrolled in, with my rate. Any signed-in user may call it; someone with no enrollments (an instructor, for example) gets `[]`. Sorted by course code, then section number.
+
+Response `200`:
+
+```json
+[
+  {
+    "section_id": "00000000-0000-0000-0000-0000000000e1",
+    "course_code": "ITS332",
+    "course_name": "Database Systems",
+    "term": "2026-1",
+    "section_no": 1,
+    "instructor_name": "Dev Instructor One",
+    "sessions_held": 12,
+    "attended": 11,
+    "excused": 0,
+    "rate_pct": 91.7
+  }
+]
+```
+
+`attended` counts `present` windows only. Errors: `401 UNAUTHENTICATED`.
+
+### `GET /api/my/overview`
+
+The Overview screen in one request: the overall rate, the rate per class, and my last 5 check-ins.
+
+Response `200`:
+
+```json
+{
+  "overall": { "sessions_held": 24, "attended": 21, "excused": 1, "rate_pct": 91.3 },
+  "classes": [
+    {
+      "section_id": "…",
+      "course_code": "ITS332",
+      "course_name": "Database Systems",
+      "section_no": 1,
+      "sessions_held": 12,
+      "attended": 11,
+      "excused": 0,
+      "rate_pct": 91.7
+    }
+  ],
+  "recent_checkins": [
+    {
+      "class_session_id": "…",
+      "section_id": "…",
+      "course_code": "ITS332",
+      "course_name": "Database Systems",
+      "recorded_at": "2026-10-26T02:03:11.000Z",
+      "method": "qr"
+    }
+  ]
+}
+```
+
+- `overall` adds up all my classes and then applies the same rule once: `sum(attended) / (sum(held) − sum(excused))`. It is **not** the average of the per-class rates (a class with 4 windows would count as much as one with 40). `rate_pct` is `null` when there is nothing to divide by.
+- `classes` is the same data as `GET /api/my/classes` without the instructor and term (the Overview screen doesn't show them).
+- `recent_checkins` are my **last 5 `present` rows, newest first** (fewer if I have fewer). `method` is `qr` or `manual`, so the screen can tell "you checked in" from "your instructor marked you". An excused mark is not a check-in and is not listed.
+
+Errors: `401`.
+
+### `GET /api/my/classes/:section_id/sessions`
+
+Class detail: all the check-in windows of one class I'm in, newest first, with what happened to me in each.
+
+Response `200`:
+
+```json
+{
+  "class": {
+    "section_id": "…",
+    "course_code": "ITS332",
+    "course_name": "Database Systems",
+    "term": "2026-1",
+    "section_no": 1,
+    "instructor_name": "Dev Instructor One",
+    "sessions_held": 12,
+    "attended": 11,
+    "excused": 0,
+    "rate_pct": 91.7
+  },
+  "sessions": [
+    {
+      "class_session_id": "…",
+      "opened_at": "2026-10-26T02:00:00.000Z",
+      "is_open": false,
+      "status": "present",
+      "method": "qr",
+      "recorded_at": "2026-10-26T02:03:11.000Z"
+    },
+    {
+      "class_session_id": "…",
+      "opened_at": "2026-10-19T02:00:00.000Z",
+      "is_open": false,
+      "status": "absent",
+      "method": null,
+      "recorded_at": null
+    }
+  ]
+}
+```
+
+`status` is `present`, `excused` or `absent` (absent = no row); `method` and `recorded_at` are `null` when absent. `class` is the same line as in `GET /api/my/classes`, so the header of the screen needs no second request. `:section_id` is checked as an id (`400 BAD_REQUEST`).
+
+Errors: `400`, `401`, `403 FORBIDDEN`: you are not enrolled in that section. The same code is sent when the id doesn't exist, so nobody can probe which ids are real.
+
+### How it would be built (step 2, after approval)
+
+- **Views** (migration, `security_invoker = true` like the P4 views, so RLS still applies): `v_section_attendance_rate` already has one line per enrolled student and section with `sessions_held`, `attended`, `excused` and `rate_pct`, so My classes and `classes` reuse it with `WHERE student_id = <me>`, joined to `sections` and `courses` for the course code, name and term. The windows list reuses `v_session_roster` with `opened_at` and `is_open` added at the end. A small new view gives the overall line and the last 5 check-ins.
+- **Code:** `api/src/student/` with `studentStore.ts` (every query in `withUser`) and `routes.ts`, in the same style as `api/src/reports/`, plus tests (a fake-db route test, and database tests that run as a real student under RLS: only my own rows, excused handling, a student of another section gets `403`, no GPS fields in any reply).
+
+### Open questions for approval
+
+1. **The instructor's name** (for Yayikast). Today a student **cannot read** the instructor's `users` row: the `users_select` policy only lets you see yourself and students you teach. To show `instructor_name` we need a deliberate, narrow permission, for example a `SECURITY DEFINER` function owned by `rls_definer` (with `SET search_path = pg_catalog, private`) that returns only the name, and only for a section the caller is enrolled in. This is a permissions change. If you'd rather not, we drop `instructor_name` from the screens.
+2. **Overall rate** (for boeingxd): pooled across classes (above) or an average of the class rates? Pooled is proposed because it is the same rule as the rate per class.
+3. **Open window counts in "held"** (for both): as proposed, a window you haven't checked in to yet lowers your rate until you do or it closes. This matches the instructor's report. The alternative is to count only closed windows.
+
 ## Rosters, reports and manual marks (P4)
 
 Again only the instructor of that section may use these. **Absent is never stored**: a student is absent when they are enrolled but have no attendance row. The roster and report come from SQL views (`v_session_roster`, `v_section_attendance_rate`), so the browser only shows what it is given and never counts anything itself.
@@ -287,4 +427,3 @@ Errors: `400` (including `status: "absent"`, which is not a status; to leave som
 ## Not decided yet
 
 - **Clearing a mark.** `docs/SCREENS.md` shows a "Clear mark" action. Clearing means deleting an attendance row, and nobody can delete attendance today (no DELETE grant, on purpose). Adding it is a permissions change for Yayikast to review, so it is not part of P4.
-- **A student's own rates.** The student screens (B6) need "my attendance per class". `v_section_attendance_rate` already holds it, but no student endpoint is written yet.
