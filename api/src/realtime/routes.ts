@@ -53,7 +53,13 @@ export async function registerRealtime(app: FastifyInstance, { hub, store, pingM
     (socket, request) => {
       const userId = request.session.get('userId')!;
       const sender = { send: (text: string) => socket.send(text) };
-      let watching: string | undefined; // one window per socket; to switch, open a new socket
+      // One window per socket, and one subscribe per socket: to switch, open a
+      // new socket. `subscribing` is set BEFORE the first await, so a second
+      // message (a repeat, or a different id sent at the same moment) can't
+      // start another database check. Without it a signed-in user could loop
+      // subscribes and load the database; the per-IP limit doesn't count socket messages.
+      let subscribing = false;
+      let subscribed = false;
       const reply = (message: object) => socket.send(JSON.stringify(message));
 
       // Heartbeat: every pingMs, drop a socket that never answered the last
@@ -68,7 +74,7 @@ export async function registerRealtime(app: FastifyInstance, { hub, store, pingM
 
       // An idle connection must not be held open for free.
       const noSubscribe = setTimeout(() => {
-        if (!watching) socket.close(CLOSE_NO_SUBSCRIBE);
+        if (!subscribed) socket.close(CLOSE_NO_SUBSCRIBE);
       }, subscribeTimeoutMs);
 
       socket.on('message', async (raw) => {
@@ -80,17 +86,16 @@ export async function registerRealtime(app: FastifyInstance, { hub, store, pingM
             return reply({ error: 'BAD_REQUEST' });
           }
           const message = Subscribe.safeParse(json);
-          if (!message.success || (watching && watching !== message.data.subscribe)) {
-            return reply({ error: 'BAD_REQUEST' });
-          }
+          if (!message.success || subscribing) return reply({ error: 'BAD_REQUEST' });
+          subscribing = true;
           const id = message.data.subscribe;
           // Same answer for "no such window" and "not yours" (we don't say which).
           if ((await store.windowStateForInstructor(userId, id)) === null) {
             reply({ error: 'FORBIDDEN' });
             return socket.close(CLOSE_FORBIDDEN);
           }
-          if (!watching) hub.subscribe(id, sender);
-          watching = id;
+          hub.subscribe(id, sender);
+          subscribed = true;
           clearTimeout(noSubscribe);
           reply({ subscribed: id });
         } catch (err) {

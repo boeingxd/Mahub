@@ -35,8 +35,11 @@ const users = {
 } as unknown as UserStore;
 
 // Only INSTRUCTOR teaches MINE. Everything else is "not found or not yours".
+let storeCalls = 0;
 const store = {
   async windowStateForInstructor(userId: string, id: string) {
+    storeCalls++;
+    await new Promise((r) => setTimeout(r, 30)); // a real query takes time: lets two messages overlap
     return userId === INSTRUCTOR && (id === MINE || id === MINE_TOO) ? ('open' as const) : null;
   },
 };
@@ -60,6 +63,7 @@ async function build(pingMs?: number, subscribeTimeoutMs?: number) {
   port = (app.server.address() as { port: number }).port;
 }
 beforeEach(() => {
+  storeCalls = 0;
   signedInAs = INSTRUCTOR;
 });
 afterEach(async () => {
@@ -167,16 +171,32 @@ describe('/ws', () => {
     expect(await closed).toBe(4403);
   });
 
-  it('one socket watches one window: asking for a second is refused', async () => {
+  it('one socket subscribes once: a repeat is refused and costs no database query', async () => {
     await build();
     const { ws, got } = await connect(INSTRUCTOR);
     ws.send(JSON.stringify({ subscribe: MINE }));
     await next(got, 1);
+    for (let i = 0; i < 3; i++) ws.send(JSON.stringify({ subscribe: MINE }));
     ws.send(JSON.stringify({ subscribe: MINE_TOO }));
-    await next(got, 2);
-    expect(got[1]).toEqual({ error: 'BAD_REQUEST' });
-    expect(hub.subscriberCount(MINE_TOO)).toBe(0);
+    await next(got, 5);
+    expect(got.slice(1)).toEqual(Array(4).fill({ error: 'BAD_REQUEST' }));
+    expect(storeCalls).toBe(1);
     expect(hub.subscriberCount(MINE)).toBe(1);
+    expect(hub.subscriberCount(MINE_TOO)).toBe(0);
+  });
+
+  it('two subscribes sent at the same moment: only the first is checked and accepted', async () => {
+    await build();
+    const { ws, got } = await connect(INSTRUCTOR);
+    ws.send(JSON.stringify({ subscribe: MINE }));
+    ws.send(JSON.stringify({ subscribe: MINE_TOO })); // before the first check has finished
+    await next(got, 2);
+    await quiet();
+    expect(got).toContainEqual({ subscribed: MINE });
+    expect(got).toContainEqual({ error: 'BAD_REQUEST' });
+    expect(storeCalls).toBe(1);
+    expect(hub.subscriberCount(MINE)).toBe(1);
+    expect(hub.subscriberCount(MINE_TOO)).toBe(0);
   });
 
   it('closes a socket that never subscribes (4408), but not one that did', async () => {

@@ -313,7 +313,7 @@ Only the instructor of that window's section is accepted (the same rule as the p
 |---|---|
 | `{"subscribed": "<id>"}` | Accepted. |
 | `{"error": "FORBIDDEN"}`, then the socket closes with code `4403` | Not the instructor of that window, or no such window: we don't say which. |
-| `{"error": "BAD_REQUEST"}` | Not exactly `{"subscribe": "<uuid>"}`, or a second, different window on the same socket. |
+| `{"error": "BAD_REQUEST"}` | Not exactly `{"subscribe": "<uuid>"}`, or any message after the first valid `subscribe` (a repeat, or a second window). Refused without a database query, so a socket can't be used to load the database. |
 
 **Limits.** A message over 1 KB closes the socket with code `1009` (the real one is about 60 bytes). If no valid `subscribe` arrives within 10 s of connecting, the server closes it with code `4408`, so an idle connection can't be held open for free.
 

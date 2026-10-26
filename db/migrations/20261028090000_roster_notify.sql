@@ -7,6 +7,10 @@
 -- (a rolled-back check-in sends nothing). The message holds ids and the status
 -- only: no name, no email, no GPS (ADR 0006). The API decides who may see it.
 --
+-- NEVER put anything private in this payload. Postgres has no permission for
+-- LISTEN: any database role that can connect hears every 'roster' message. The
+-- rule is "nothing you wouldn't show every database role".
+--
 -- Payload (also in docs/API.md):
 --   {"class_session_id": "<uuid>", "student_id": "<uuid>", "status": "present" | "excused"}
 -- An 8000-byte limit applies to NOTIFY payloads; this is about 130 bytes.
