@@ -284,6 +284,35 @@ Response `200`:
 
 Errors: `400` (including `status: "absent"`, which is not a status; to leave someone absent, don't mark them), `401`, `403`, `404 NOT_ENROLLED` (that student is not in this section).
 
+## Live roster (B5)
+
+How the instructor's roster updates without a refresh. Two hops: the database tells the API, and the API tells the browser.
+
+**Hop 1: Postgres to the API (`LISTEN roster`).** A trigger on `api.attendance` (after every INSERT or UPDATE, migration `20261028090000_roster_notify.sql`) calls `pg_notify('roster', …)`. Postgres delivers it only when the transaction commits, so a refused or rolled-back check-in sends nothing. The message is text holding this JSON, ids and status only (no name, no email, no GPS):
+
+```json
+{ "class_session_id": "…", "student_id": "…", "status": "present" }
+```
+
+`status` is `present` or `excused`. It says "this row changed"; the roster endpoint above stays the source of truth, and the browser re-fetches the roster after a reconnect.
+
+**Hop 2: the API to the browser (`/ws`).** A WebSocket (Caddy passes `/ws` to the API unchanged). It needs the login cookie, and the page that opens it must be on our own address (`Origin` is checked): otherwise the upgrade is refused with `401` or `403`.
+
+The browser sends one kind of message, and only the instructor of that window's section is accepted (the same rule as the projector QR):
+
+```json
+{ "subscribe": "<class_session_id>" }
+```
+
+The API answers `{"subscribed": "<id>"}`, or `{"error": "NOT_FOUND"}` (no such window, or not yours: we don't say which) or `{"error": "BAD_REQUEST"}` (anything else, or more than 5 windows on one socket). After that the browser receives:
+
+| Message | When | What the browser does |
+|---|---|---|
+| `{"type":"roster","class_session_id":"…","student_id":"…","status":"present"}` | An attendance row of that window changed (hop 1) | Ask `GET …/roster` again |
+| `{"type":"resync"}` | The API lost its database connection for a moment and got it back, so messages may have been missed | Ask `GET …/roster` again |
+
+The API pings every 20 s and drops a socket that doesn't answer. `web/src/realtime.ts` reconnects after 1, 2, 4 … up to 30 seconds and asks for the roster again once it is back; the roster screen also refreshes itself every 30 s as a safety net.
+
 ## Not decided yet
 
 - **Clearing a mark.** `docs/SCREENS.md` shows a "Clear mark" action. Clearing means deleting an attendance row, and nobody can delete attendance today (no DELETE grant, on purpose). Adding it is a permissions change for Yayikast to review, so it is not part of P4.
