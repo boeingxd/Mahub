@@ -71,5 +71,6 @@ DROP FUNCTION audit.log_change();
 REVOKE ALL ON audit.events FROM audit_definer;
 REVOKE ALL ON FUNCTION private.current_user_id() FROM audit_definer;
 REVOKE USAGE ON SCHEMA audit, private FROM audit_definer;
-DROP ROLE audit_definer;
+-- The role is left in place, like rls_definer: roles belong to the whole server, not one
+-- database, so DROP ROLE fails while another database (mahub, mahub_test) still uses it.
 ALTER TABLE audit.events ALTER COLUMN row_pk TYPE text USING row_pk::text;
