@@ -48,7 +48,7 @@ How the web app talks to the API: `web/src/api.ts` (`useApi`, `apiPost`, friendl
 | #36 B5 live roster (WebSocket) | boeingxd | Check-ins now exist (Y4), so this can be shown |
 | #38 B7 rate limits, #39 B8 CI + k6 | boeingxd | No dependencies, can be done any time |
 | #40, #41 | postscrippt | Audit trigger, indexes + EXPLAIN |
-| #42 | Yayikast | Threat model |
+| #42 | Yayikast | Threat model written (`docs/THREAT_MODEL.md`); needs boeingxd's and postscrippt's review |
 | #44 A2 demo rehearsal + slides | all three | |
 
 After #37 is done, boeingxd plans a **UI revamp** (a new look; see "Decisions"). It is not started.
