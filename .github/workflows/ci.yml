@@ -1,0 +1,75 @@
+# Automatic checks on every pull request (task B8).
+# GitHub starts a fresh machine for each job, so a PR that only works on
+# your laptop (a missing migration, a forgotten file) turns red here.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      # The same database image as docker-compose.yml.
+      postgres:
+        image: imresamu/postgis:16-3.5
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # What dbmate and the database tests (api/test/db/) read from .env locally.
+      DATABASE_URL: postgres://postgres:ci-only-password@localhost:5432/mahub?sslmode=disable
+      DBMATE_MIGRATIONS_DIR: ./db/migrations
+      DBMATE_NO_DUMP_SCHEMA: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+        working-directory: api
+
+      # dbmate comes with `npm ci` (the "dbmate" package in api/).
+      # Up, one step back, up again: proves a migration can be undone.
+      - name: Migrations up, rollback, up
+        run: |
+          dbmate=api/node_modules/.bin/dbmate
+          $dbmate create
+          $dbmate up
+          $dbmate rollback
+          $dbmate up
+
+      - run: npm run lint
+        working-directory: api
+      - run: npm run build
+        working-directory: api
+      # Includes the database tests: they build their own mahub_test database.
+      - run: npm test
+        working-directory: api
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run lint
+        working-directory: web
+      - run: npm run build
+        working-directory: web
