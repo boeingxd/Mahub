@@ -30,7 +30,7 @@ One page: what is built, what is next, and who needs what from whom. Update it w
 | Live session (`/session/:id`) | **Real**: QR, count, roster, mark present/excused, end session |
 | Projector (`/projector/:id`) | **Real**: QR and count |
 | Session summary (`/summary/:id`) | **Real** (`/class-sessions/:id`, `/my/sections`, roster). The CSV button downloads the whole section's report |
-| Student check-in (`/checkin`) | Location prompt only. **Must now send it to `POST /api/checkin/complete`** (see `docs/API.md`) |
+| Student check-in (`/checkin`) | **Real** (`POST /checkin/complete`). Not yet tested on a real phone |
 | Student classes, overview, class detail | Sample data. No student endpoints exist or are documented yet |
 | `/dev`, `/checkin?preview=done`, `web/src/fakeData.ts` | Temporary. Delete when the screens above are real |
 
