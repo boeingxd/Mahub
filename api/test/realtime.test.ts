@@ -13,6 +13,7 @@ import { createRosterHub, type RosterHub } from '../src/realtime/hub.js';
 const INSTRUCTOR = randomUUID();
 const STUDENT = randomUUID();
 const MINE = randomUUID(); // a window the instructor teaches
+const MINE_TOO = randomUUID(); // a second window the instructor teaches
 const OTHER = randomUUID(); // a window someone else teaches
 let signedInAs: string = INSTRUCTOR;
 
@@ -36,7 +37,7 @@ const users = {
 // Only INSTRUCTOR teaches MINE. Everything else is "not found or not yours".
 const store = {
   async windowStateForInstructor(userId: string, id: string) {
-    return userId === INSTRUCTOR && id === MINE ? ('open' as const) : null;
+    return userId === INSTRUCTOR && (id === MINE || id === MINE_TOO) ? ('open' as const) : null;
   },
 };
 
@@ -45,13 +46,13 @@ let hub: RosterHub;
 let sockets: WebSocket[] = [];
 let port = 0;
 
-async function build(pingMs?: number) {
+async function build(pingMs?: number, subscribeTimeoutMs?: number) {
   hub = createRosterHub();
   app = buildApp({
     db: {} as Queryable,
     logLevel: 'silent',
     auth: { google, users, sessionKey: randomBytes(32) },
-    realtime: { hub, store, pingMs },
+    realtime: { hub, store, pingMs, subscribeTimeoutMs },
   });
   // A real (local) port, because the websocket plugin lives inside the auth
   // scope and so app.injectWS isn't available on the root app.
@@ -85,10 +86,11 @@ function open(headers: Record<string, string> = {}, wsOptions: object = {}) {
   });
 }
 
-// Opens /ws as a signed-in user and collects every text message it receives.
+// Opens /ws as a signed-in user, from our own origin (a browser always sends
+// one), and collects every text message it receives.
 async function connect(as: string, headers: Record<string, string> = {}, wsOptions?: object) {
   const session = await loginCookie(as);
-  const ws = await open({ cookie: `mahub_session=${encodeURIComponent(session)}`, ...headers }, wsOptions);
+  const ws = await open({ cookie: `mahub_session=${encodeURIComponent(session)}`, origin: `http://127.0.0.1:${port}`, ...headers }, wsOptions);
   sockets.push(ws);
   const got: Record<string, unknown>[] = [];
   ws.on('message', (data) => got.push(JSON.parse(data.toString())));
@@ -100,6 +102,7 @@ const next = (got: unknown[], n: number) =>
     const tick = () => (got.length >= n ? resolve() : Date.now() - start > 2000 ? reject(new Error(`only ${got.length} of ${n} messages`)) : setTimeout(tick, 10));
     tick();
   });
+const closedWith = (ws: WebSocket) => new Promise<number>((resolve) => ws.once('close', (code) => resolve(code)));
 const quiet = (ms = 150) => new Promise((r) => setTimeout(r, ms));
 const change = (class_session_id: string, status = 'present') => JSON.stringify({ class_session_id, student_id: randomUUID(), status });
 
@@ -112,9 +115,16 @@ describe('/ws', () => {
   it('refuses a socket opened from another website', async () => {
     await build();
     await expect(connect(INSTRUCTOR, { origin: 'https://evil.example' })).rejects.toThrow(/403/);
-    // Our own site is fine.
-    const ok = await connect(INSTRUCTOR, { origin: `http://127.0.0.1:${port}` });
+    // Our own site is fine, whatever its address (here a different port is not).
+    await expect(connect(INSTRUCTOR, { origin: `http://127.0.0.1:${port + 1}` })).rejects.toThrow(/403/);
+    const ok = await connect(INSTRUCTOR);
     expect(ok.ws.readyState).toBe(1);
+  });
+
+  it('refuses a socket with no Origin header', async () => {
+    await build();
+    const session = await loginCookie(INSTRUCTOR);
+    await expect(open({ cookie: `mahub_session=${encodeURIComponent(session)}` })).rejects.toThrow(/403/);
   });
 
   it("the instructor gets their window's changes, and only theirs", async () => {
@@ -136,13 +146,55 @@ describe('/ws', () => {
   it('a student who tries to subscribe is refused and hears nothing', async () => {
     await build();
     const { ws, got } = await connect(STUDENT);
+    const closed = closedWith(ws);
     ws.send(JSON.stringify({ subscribe: MINE }));
     await next(got, 1);
-    expect(got[0]).toEqual({ error: 'NOT_FOUND' });
+    expect(got[0]).toEqual({ error: 'FORBIDDEN' });
+    expect(await closed).toBe(4403);
     hub.publish(change(MINE));
     await quiet();
     expect(got).toHaveLength(1);
     expect(hub.subscriberCount(MINE)).toBe(0);
+  });
+
+  it('a window that does not exist is refused the same way (nobody can probe ids)', async () => {
+    await build();
+    const { ws, got } = await connect(INSTRUCTOR);
+    const closed = closedWith(ws);
+    ws.send(JSON.stringify({ subscribe: randomUUID() }));
+    await next(got, 1);
+    expect(got[0]).toEqual({ error: 'FORBIDDEN' });
+    expect(await closed).toBe(4403);
+  });
+
+  it('one socket watches one window: asking for a second is refused', async () => {
+    await build();
+    const { ws, got } = await connect(INSTRUCTOR);
+    ws.send(JSON.stringify({ subscribe: MINE }));
+    await next(got, 1);
+    ws.send(JSON.stringify({ subscribe: MINE_TOO }));
+    await next(got, 2);
+    expect(got[1]).toEqual({ error: 'BAD_REQUEST' });
+    expect(hub.subscriberCount(MINE_TOO)).toBe(0);
+    expect(hub.subscriberCount(MINE)).toBe(1);
+  });
+
+  it('closes a socket that never subscribes (4408), but not one that did', async () => {
+    await build(undefined, 150);
+    const idle = await connect(INSTRUCTOR);
+    const busy = await connect(INSTRUCTOR);
+    busy.ws.send(JSON.stringify({ subscribe: MINE }));
+    expect(await closedWith(idle.ws)).toBe(4408);
+    await quiet(200);
+    expect(busy.ws.readyState).toBe(1);
+  });
+
+  it('closes a socket that sends more than 1 KB (1009)', async () => {
+    await build();
+    const { ws } = await connect(INSTRUCTOR);
+    const closed = closedWith(ws);
+    ws.send('x'.repeat(2000));
+    expect(await closed).toBe(1009);
   });
 
   it('refuses messages that are not exactly {"subscribe": "<id>"}', async () => {

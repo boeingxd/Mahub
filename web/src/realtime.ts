@@ -47,11 +47,13 @@ export function watchRoster(classSessionId: string, onChange: () => void): () =>
       } else if (message.type === 'roster' || message.type === 'resync') {
         changed();
       }
-      // { error } (not the instructor, window gone): nothing to show. The
-      // screen still refreshes itself slowly (useLiveSession), so it keeps working.
+      // { error: 'FORBIDDEN' } (not the instructor, or no such window): the server
+      // closes the socket and we stay closed. The screen still refreshes itself
+      // slowly (useLiveSession), so it keeps working.
     };
-    ws.onclose = () => {
-      if (stopped) return;
+    ws.onclose = (event) => {
+      // 4403: the server refused us (not the instructor of this window). Trying again won't change that.
+      if (stopped || event.code === 4403) return;
       reconnectTimer = setTimeout(connect, retryMs);
       retryMs = Math.min(retryMs * 2, MAX_RETRY_MS);
     };
