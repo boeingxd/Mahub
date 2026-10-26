@@ -47,7 +47,7 @@ How the web app talks to the API: `web/src/api.ts` (`useApi`, `apiPost`, friendl
 | #37 B6 screens | boeingxd | Instructor screens are all wired; the student screens wait for endpoints |
 | #36 B5 live roster (WebSocket) | boeingxd | Check-ins now exist (Y4), so this can be shown |
 | #38 B7 rate limits, #39 B8 CI + k6 | boeingxd | No dependencies, can be done any time |
-| #40, #41 | postscrippt | Audit trigger, indexes + EXPLAIN |
+| #40, #41 | postscrippt | Audit trigger, indexes + EXPLAIN (write-up in `docs/PERFORMANCE.md`) |
 | #42 | Yayikast | Threat model written (`docs/THREAT_MODEL.md`); needs boeingxd's and postscrippt's review |
 | #44 A2 demo rehearsal + slides | all three | |
 
