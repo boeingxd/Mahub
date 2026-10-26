@@ -24,7 +24,7 @@ One page: what is built, what is next, and who needs what from whom. Update it w
 | W2 | Y3 rotating QR, Y4 check-in transaction | Yayikast |
 | W2 | B5 live roster (WebSocket), B6 connect the screens to the real API | boeingxd |
 | W3 | B7 rate limits and real client IP, B8 CI and k6 | boeingxd |
-| W3 | P5 audit trigger, P6 indexes, Y5 threat model, Y6 regression tests | postscrippt, Yayikast |
+| W3 | P5 audit trigger, P6 indexes (`docs/PERFORMANCE.md`), Y5 threat model, Y6 regression tests | postscrippt, Yayikast |
 | W3 | A2 demo rehearsal and slides | all three |
 
 Demo: Fri 23 Oct. One buffer week after it.
