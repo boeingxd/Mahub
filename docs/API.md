@@ -1,6 +1,6 @@
 # API contract
 
-Every endpoint the demo needs: who may call it, what to send, what comes back. Built from task A1 (#24). Written so far: sign-in, the QR and student check-in, and the instructor endpoints. The live-roster (WebSocket) section and the student endpoints are still to be added.
+Every endpoint the demo needs: who may call it, what to send, what comes back. Built from task A1 (#24). Written so far: sign-in, the QR and student check-in, the instructor endpoints and the live roster (WebSocket). The student endpoints are still to be added.
 
 Caddy strips `/api` before the request reaches the API, so inside the API a route is `/my/sections`, but the browser calls `/api/my/sections`. Paths below are the browser's.
 
@@ -283,6 +283,48 @@ Response `200`:
 ```
 
 Errors: `400` (including `status: "absent"`, which is not a status; to leave someone absent, don't mark them), `401`, `403`, `404 NOT_ENROLLED` (that student is not in this section).
+
+## Live roster (B5)
+
+How the instructor's roster updates without a refresh. Two hops: the database tells the API, and the API tells the browser.
+
+**Hop 1: Postgres to the API (`LISTEN roster`).** A trigger on `api.attendance` (after every INSERT or UPDATE, migration `20261028090000_roster_notify.sql`) calls `pg_notify('roster', …)`. Postgres delivers it only when the transaction commits, so a refused or rolled-back check-in sends nothing. The message is text holding this JSON, ids and status only (no name, no email, no GPS):
+
+```json
+{ "class_session_id": "…", "student_id": "…", "status": "present" }
+```
+
+`status` is `present` or `excused`. It says "this row changed"; the roster endpoint above stays the source of truth, and the browser re-fetches the roster after a reconnect.
+
+**Hop 2: the API to the browser (`/ws`).** A WebSocket (Caddy passes `/ws` to the API unchanged). The upgrade is refused before it starts, with a plain HTTP status:
+
+- `401`: no login cookie (the cookie is sent with the upgrade; there is no token in the address).
+- `403`: the `Origin` header is missing, or its host and port are not the `Host` header of the same request. "Our own site" is not a fixed list, because the Cloudflare Tunnel address changes on every restart. Browsers always send `Origin` on a WebSocket, so a page on another website can't open the socket with the visitor's cookie.
+
+The browser then sends one message, once:
+
+```json
+{ "subscribe": "<class_session_id>" }
+```
+
+Only the instructor of that window's section is accepted (the same rule as the projector QR). **One socket watches one window**; to switch, open a new socket. The answers:
+
+| Answer | Meaning |
+|---|---|
+| `{"subscribed": "<id>"}` | Accepted. |
+| `{"error": "FORBIDDEN"}`, then the socket closes with code `4403` | Not the instructor of that window, or no such window: we don't say which. |
+| `{"error": "BAD_REQUEST"}` | Not exactly `{"subscribe": "<uuid>"}`, or any message after the first valid `subscribe` (a repeat, or a second window). Refused without a database query, so a socket can't be used to load the database. |
+
+**Limits.** A message over 1 KB closes the socket with code `1009` (the real one is about 60 bytes). If no valid `subscribe` arrives within 10 s of connecting, the server closes it with code `4408`, so an idle connection can't be held open for free.
+
+After subscribing the browser receives:
+
+| Message | When | What the browser does |
+|---|---|---|
+| `{"type":"roster","class_session_id":"…","student_id":"…","status":"present"}` | An attendance row of that window changed (hop 1) | Ask `GET …/roster` again |
+| `{"type":"resync"}` | The API lost its database connection for a moment and got it back, so messages may have been missed | Ask `GET …/roster` again |
+
+The API pings every 20 s and drops a socket that doesn't answer. `web/src/realtime.ts` reconnects after 1, 2, 4 … up to 30 seconds and asks for the roster again once it is back (it does not retry after `4403`); the roster screen also refreshes itself every 30 s as a safety net.
 
 ## Not decided yet
 
