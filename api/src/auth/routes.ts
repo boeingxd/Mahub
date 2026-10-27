@@ -36,6 +36,10 @@ export interface AuthOptions {
   loadTest?: boolean;
 }
 
+// The emails POST /auth/test-login accepts: the 300 load-test students
+// (load/seed.sql: 67300xxxxx) and the seeded dev accounts at example.com.
+const LOAD_TEST_EMAIL = /^(67300[0-9]{5}@g\.siit\.tu\.ac\.th|[^@\s]+@example\.com)$/;
+
 const EIGHT_HOURS = 8 * 60 * 60; // seconds
 export const SCAN_SECONDS = 90;
 
@@ -122,6 +126,11 @@ export async function registerAuth(app: FastifyInstance, { google, users, sessio
       const body = z.strictObject({ email: z.string().max(254) }).safeParse(request.body);
       if (!body.success) return reply.code(400).send({ error: 'BAD_REQUEST' });
       const email = body.data.email.toLowerCase();
+      // Only the load test's own accounts. The login policy would otherwise
+      // SAVE the fake Google id on a real person's account (a student who hasn't
+      // signed in yet, a registered instructor), and they could then never sign
+      // in with real Google again.
+      if (!LOAD_TEST_EMAIL.test(email)) return reply.code(403).send({ error: 'FORBIDDEN' });
       const result = await applyLoginPolicy({ sub: `loadtest:${email}`, email, emailVerified: true }, users);
       if (!result.ok) return reply.code(403).send({ error: result.error });
       request.session.regenerate();

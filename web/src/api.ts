@@ -47,8 +47,8 @@ export const errorCode = (e: unknown) => (e instanceof ApiError ? e.code : 'INTE
 
 // Fetches `path` when the screen opens (and again on retry()).
 // refreshMs: ask again every so often, quietly. A failed refresh keeps showing the
-// last good data instead of an error. (shortcut: polling until the live WebSocket,
-// task B5, lands.)
+// last good data instead of an error. (The live roster uses a slow refresh only as a
+// safety net; the WebSocket in realtime.ts does the fast updates.)
 export function useApi<T>(path: string, refreshMs?: number) {
   const [state, setState] = useState<ApiState<T>>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
