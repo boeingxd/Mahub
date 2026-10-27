@@ -47,7 +47,6 @@ How the web app talks to the API: `web/src/api.ts` (`useApi`, `apiPost`, friendl
 | Task | Who | Notes |
 |---|---|---|
 | #24 A1 API contract (`docs/API.md`) | all three | Live roster (#71) and student endpoints (#77) are in |
-| Instructor name for students | Yayikast | Needs a narrow new permission (a `SECURITY DEFINER` function) or the name is dropped. See #77 |
 | Real Google sign-in, full run | boeingxd, Yayikast | Credentials and `.env` are ready and the tunnel address is registered in the Google console, but Google still answers `redirect_uri_mismatch`. Yayikast is checking that the URI is on the same OAuth client as the client ID in `.env` |
 | #44 A2 demo script, slides, rehearsals | all three | Script written (`docs/DEMO.md`, #81), not rehearsed. There is no written rubric, so it ends with a topic map. Slides and two rehearsals are still to do |
 
