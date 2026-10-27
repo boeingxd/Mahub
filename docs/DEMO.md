@@ -1,6 +1,6 @@
 # Demo script (task A2)
 
-About 8 minutes. One laptop mirrored to the projector (instructor), one phone (student), one terminal. Every moment below says which course it shows. The last section maps each one to a rubric line.
+About 8 minutes. One laptop mirrored to the projector (instructor), one phone (student), one terminal. Every moment below says which course it shows. The last section maps each topic to a demo step and a file.
 
 ## Before you start (10 minutes, do it once)
 
@@ -44,19 +44,21 @@ If time is short, keep 1 to 6, 10, 11 and 14. Cut 12, 13 and 15 first.
 - The three student screens (My classes, Overview, Class detail) are built on sample data and wait for the student endpoints (PR #77, #78). The student side of the demo is scan, then check-in.
 - The real Google sign-in has not been run end to end on the team's machines yet (see `docs/STATUS.md`).
 
-## Rubric map (fill in when the rubrics arrive)
+## Topic map
 
-| Rubric line | Moment(s) | Where the proof is in the repo |
+By topic, because we have no written rubric. If a rubric turns up, match its lines to these rows.
+
+| Topic | Moment(s) | Where the proof is in the repo |
 |---|---|---|
-| _Database Systems:_ schema, keys, constraints | 3, 5, 7 | `db/migrations/`, `docs/ERD.md` |
-| _Database Systems:_ transactions, concurrency | 3, 5, 15 | `api/src/checkin/checkinStore.ts`, `api/test/regressions/04-double-checkin.test.ts` |
-| _Database Systems:_ security (roles, RLS, audit) | 8, 9 | `docs/PERMISSIONS.md`, `api/test/db/rls.test.ts`, `api/test/db/audit.test.ts` |
-| _Database Systems:_ views and reports | 10 | `db/migrations/20261026090000_report_views.sql` |
-| _Database Systems:_ indexes, `EXPLAIN ANALYZE` | (show the tables) | `docs/PERFORMANCE.md` |
-| _Database Systems:_ triggers, `LISTEN`/`NOTIFY` | 4, 8 | `db/migrations/20261028090000_roster_notify.sql` |
-| _Computer Networks:_ reverse proxy, TLS, headers | 11 | `infra/caddy/Caddyfile`, `docs/NETWORK.md` |
-| _Computer Networks:_ trust boundaries, client IP | 12 | `docs/NETWORK.md` ("Who trusts whom") |
-| _Computer Networks:_ rate limiting | 13 | `api/src/rateLimit.ts`, `api/test/rateLimit.test.ts` |
-| _Computer Networks:_ WebSocket | 4 | `api/src/realtime/`, `docs/API.md` ("Live roster") |
-| _Computer Networks:_ public access, tunnel | 3 | `docs/NETWORK.md` ("Phone testing") |
-| _Computer Networks:_ load and performance | 14 | `load/checkin.js`, `docs/NETWORK.md` ("Load test") |
+| DB: schema, keys, constraints | 3, 5, 7 | `db/migrations/`, `docs/ERD.md` |
+| DB: transactions, concurrency | 3, 5, 15 | `api/src/checkin/checkinStore.ts`, `api/test/regressions/04-double-checkin.test.ts` |
+| DB: security (roles, RLS, audit) | 8, 9 | `docs/PERMISSIONS.md`, `api/test/db/rls.test.ts`, `api/test/db/audit.test.ts` |
+| DB: views and reports | 10 | `db/migrations/20261026090000_report_views.sql` |
+| DB: indexes, `EXPLAIN ANALYZE` | (show the tables) | `docs/PERFORMANCE.md` |
+| DB: triggers, `LISTEN`/`NOTIFY` | 4, 8 | `db/migrations/20261028090000_roster_notify.sql` |
+| Net: reverse proxy, TLS, headers | 11 | `infra/caddy/Caddyfile`, `docs/NETWORK.md` |
+| Net: trust boundaries, client IP | 12 | `docs/NETWORK.md` ("Who trusts whom") |
+| Net: rate limiting | 13 | `api/src/rateLimit.ts`, `api/test/rateLimit.test.ts` |
+| Net: WebSocket | 4 | `api/src/realtime/`, `docs/API.md` ("Live roster") |
+| Net: public access, tunnel | 3 | `docs/NETWORK.md` ("Phone testing") |
+| Net: load and performance | 14 | `load/checkin.js`, `docs/NETWORK.md` ("Load test") |
