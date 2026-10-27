@@ -46,7 +46,7 @@ Every attempt, refused or not, is logged in `checkin_attempts`.
 | R3 | **IDOR**: changing an id in the URL to read or change another section | Reading other students' records, marking them | Every query runs as the signed-in user (`withUser` sets `app.user_id`), so RLS filters every table. A wrong id gets `403`/`404` with no hint whether it exists. | `sections.test.ts` "someone else can't read it: 403", `reports.test.ts` "refuses someone who doesn't teach the section: 403", `qr.test.ts` "gives nobody else the QR", `db/rls.test.ts` "an instructor sees their own section's attendance, and nobody else's" |
 | R4 | **The API itself is tricked** (a bug in our code) into reading everything | A data leak | The API logs in as `mahub_api`: not a superuser, under RLS, with no DELETE grant. It refuses to start as a superuser. A bug in our code still can't see past the policies. | `db/rls.test.ts` "assertRlsApplies refuses a superuser…" and "nobody can DELETE through the API user" |
 | R5 | **SQL injection** | Anything | Every query uses `$1` parameters; no SQL is built from user text. | Code review: `api/src/**/*Store.ts` |
-| R6 | **An admin abuses their power** (gives roles, edits attendance) | Silent cheating by an insider | Every role and attendance change should go to `audit.events`, which nobody can UPDATE or DELETE. **Status: the trigger is task P5 (#40), not built yet.** The table and its grants exist. | P5's test (pending). Demo: change a role, then show the audit row |
+| R6 | **An admin abuses their power** (gives roles, edits attendance) | Silent cheating by an insider | Every change to roles, attendance and enrolments is written to `audit.events` by a trigger (P5, #40), with the actor and the row before and after. The app's database user can't read, change, delete or forge those rows; only `auditor` can read them. | `db/audit.test.ts`. Demo: change a role, then show the audit row |
 | R7 | **Collecting where students are** | Privacy (PDPA) | We never store raw GPS or IP addresses (ADR 0006): only the distance and accuracy. | `regressions/08-no-raw-gps-or-ip.test.ts` |
 
 ## The web and the network
@@ -54,12 +54,13 @@ Every attempt, refused or not, is logged in `checkin_attempts`.
 | # | Attack | Impact | Defence | Proof |
 |---|---|---|---|---|
 | N1 | **Guessing a QR token** | A check-in without the QR | 16 base64url characters = 96 bits, and only 3 windows are valid at a time. Compared with `timingSafeEqual`, so timing doesn't leak it. Without `QR_SECRET` nobody can make one. | `qr.test.ts` "a tampered token fails" and "a token made with a different secret fails" |
-| N2 | **Flooding check-in during class** | Students can't check in | **Status: rate limits are task B7 (#38), not built yet.** Planned: a generous per-IP limit in Caddy (campus NAT means many students share one IP) and a per-user limit on `/checkin/*` in the API, with counters in memory only. Today: the DB pool caps the API at 10 connections, and each check-in is one short transaction. | B7's tests and the k6 load test (B8, #39) |
+| N2 | **Flooding check-in during class** | Students can't check in | Rate limits in the API (B7, #38): 3000 requests a minute per IP everywhere (generous, because a lecture hall shares one campus IP through NAT) and 5 a minute per signed-in user on `/checkin/*`. Counters live in memory only, and no IP is stored (ADR 0006). The DB pool caps the API at 10 connections, and each check-in is one short transaction. | `rateLimit.test.ts`; the k6 load test in `load/` (B8, #39) chose the 3000 |
 | N3 | **Another website calls the API as you** (CORS `*`, CSRF) | Actions in your name (old bug 6) | No CORS headers at all: the app is on one origin behind Caddy. Login cookies are `SameSite=Lax`, so other sites' POSTs carry no cookie. Logout is a POST. | `regressions/06-cors-and-raw-errors.test.ts`, `auth.test.ts` "the login cookie is HttpOnly, Secure, SameSite=Lax…" |
 | N4 | **Raw errors leak SQL or stack traces** | Helps an attacker (old bug 6) | One error handler sends only a code; details go to the server log. | `regressions/06-cors-and-raw-errors.test.ts`, `health.test.ts` "…without leaking the error" |
 | N5 | **Stealing the login cookie** (XSS, plain HTTP) | Impersonation | `HttpOnly` (page scripts can't read it), `Secure` (HTTPS only), HSTS, and a CSP with no inline scripts. Encrypted and signed, so it can't be edited. | `auth.test.ts` "a tampered cookie is treated as logged out". Headers in `infra/caddy/Caddyfile` |
 | N6 | **A login link that sends you to a fake site** (open redirect) | Phishing | `returnTo` must be a path on our site. | `auth.test.ts` "ignores returnTo=https://evil.com" |
 | N7 | **A forged `X-Forwarded-For` / `CF-Connecting-IP`** to dodge limits | Gets around rate limits | Caddy believes `CF-Connecting-IP` only from the tunnel; the API believes `X-Forwarded-For` only from Caddy. | `health.test.ts` "ignores X-Forwarded-For from anyone else" |
+| N9 | **A live-roster socket that outlives logout** | Someone who opened the live roster and then logged out keeps getting check-in updates for that window | The socket checks the login cookie and the window's owner once, when it opens (`/ws`, same origin only). **Accepted:** an open socket isn't closed at logout; it ends when the tab closes or the API restarts. It only receives names and counts for a window that user was allowed to see. | `realtime.test.ts` (signed-out and not-your-window are refused) |
 | N8 | **Making the QR write to the DB** (old bug 7: a row every 10 s) | Load, and a growing table | The QR is a stateless HMAC: showing and scanning it only read. | `regressions/07-qr-writes-nothing.test.ts` (runs on read-only connections) |
 
 ## Secrets
@@ -78,13 +79,13 @@ Every attempt, refused or not, is logged in `checkin_attempts`.
 | 3. Any student could create a class | R2 | `regressions/03-student-creates-section.test.ts` |
 | 4. One check-in counted twice | C8 | `regressions/04-double-checkin.test.ts` |
 | 5. Tables made by clicking in a dashboard | S2 | `regressions/05-migrations-only.test.ts` |
-| 6. CORS `*`, raw errors, no rate limit | N2, N3, N4 | `regressions/06-cors-and-raw-errors.test.ts` (rate limits: B7) |
+| 6. CORS `*`, raw errors, no rate limit | N2, N3, N4 | `regressions/06-cors-and-raw-errors.test.ts`, `rateLimit.test.ts` |
 | 7. The QR wrote to the DB every 10 s | N8 | `regressions/07-qr-writes-nothing.test.ts` |
 | 8. Raw GPS kept forever | R7 | `regressions/08-no-raw-gps-or-ip.test.ts` |
 
 ## Still open
 
-- **N2 rate limits** (B7, #38) and **R6 audit trigger** (P5, #40) are planned but not built. Until then, these rows are design, not proof.
+- **N9 is an accepted risk.** A live-roster socket stays open after logout until the tab closes. Fixing it means tracking sockets per login, which isn't worth it for a demo.
 - **C1 and C4 are accepted risks.** The instructor's own eyes and the manual mark are the backstop. That is a deliberate choice (ADR 0004, no risk flags), not a gap.
 
 ## Demo script (5 minutes)
