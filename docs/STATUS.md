@@ -19,7 +19,7 @@ One page: what is built, what is next, and who needs what from whom. Update it w
 | Load test | Done (#74) | k6, 300 students in about 25 s: all 300 checked in, 0 failed requests, p95 under 10 ms. Results in `docs/NETWORK.md`. It found the first per-IP limit (300) far too low |
 | Test login (for the load test and demos without Google) | Done (#74, locked down in #76) | `POST /auth/test-login` exists only when the API runs with `LOAD_TEST=1` and the Google redirect is on localhost. The tunnel door answers 404 for it and it accepts only load-test emails (checked with `LOAD_TEST=1` on: door 1 gives 204 or 403, the tunnel door 404) |
 | Live roster (WebSocket) | Done (#75) | A trigger on `attendance` sends `pg_notify`, the API pushes it over `/ws` to the instructor of that window, the browser reconnects by itself. Design in `docs/API.md` ("Live roster") |
-| Student endpoints | Done (#77 contract, #82 code) | `GET /my/classes`, `/my/overview`, `/my/classes/:id/sessions` (migration `20261027120000_student_views.sql`). Checked on the live stack on 27 Oct with a test-login student: 403 for a class that student isn't in, 401 signed out. `instructor_name` depends on Yayikast's review of a small permissions function; the screens already cope with `null` |
+| Student endpoints | Done (#77 contract, #82 code) | `GET /my/classes`, `/my/overview`, `/my/classes/:id/sessions` (migration `20261027120000_student_views.sql`). Checked on the live stack on 27 Oct with a test-login student: 403 for a class that student isn't in, 401 signed out. `instructor_name` is filled in for enrolled students (Yayikast approved the small function that reads it); the screens still cope with `null` |
 | Regression tests | Done | Y6: one file per old bug in `api/test/regressions/` |
 | Threat model | Written | `docs/THREAT_MODEL.md` (Y5). Yayikast will add the known limit that an open socket outlives logout |
 | Caddy, Cloudflare Tunnel | Done | See `docs/NETWORK.md` |
@@ -66,7 +66,6 @@ After the screens are real, boeingxd plans a **UI revamp** (a new look; see "Dec
 ## Who needs what from whom
 
 - **Yayikast → boeingxd:** a working Google sign-in: the OAuth client whose ID is in `.env` must list the tunnel callback `https://<tunnel address>/api/auth/callback`, and every account that will sign in must be a test user (the Google app is in "Testing" mode). Her answer on the `redirect_uri_mismatch` blocks the full run.
-- **Yayikast, review:** the small permissions function for the instructor's name (#77, #82). Until it is approved, `instructor_name` can be `null`.
 - **boeingxd → Yayikast:** the tunnel address, and the phone accounts to add as test users. The address changes on every tunnel restart, so don't restart it.
 - **boeingxd:** set branch protection on `main`, rehearse the demo, and confirm the demo date.
 - **Everyone:** agree the API contract (A1) before building on top of it. Schema or permission changes need Yayikast's review ("Clear mark" needs a DELETE grant on attendance; see `docs/API.md`, "Not decided yet").
