@@ -64,6 +64,7 @@ After the screens are real, boeingxd plans a **UI revamp** (a new look; see "Dec
 ## Who needs what from whom
 
 - **Yayikast → boeingxd:** nothing open. Every account that will sign in on a phone during the demo must be a Google test user (the Google app is in "Testing" mode), so send her the list.
+- **Tunnel (27 Oct, afternoon):** the first address died when the laptop's network dropped, and a new one was created. Until Yayikast registers the new callback in Google and `.env` (`DOCKER_GOOGLE_REDIRECT_URI`) is updated and the API recreated, Google sign-in through the tunnel does not work. More stable hosting options are in `docs/NETWORK.md`.
 - **boeingxd → Yayikast:** the tunnel address, and the phone accounts to add as test users. The address changes on every tunnel restart, so don't restart it.
 - **boeingxd:** set branch protection on `main`, rehearse the demo, and confirm the demo date.
 - **Everyone:** agree the API contract (A1) before building on top of it. Schema or permission changes need Yayikast's review ("Clear mark" needs a DELETE grant on attendance; see `docs/API.md`, "Not decided yet").
