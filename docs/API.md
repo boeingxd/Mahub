@@ -199,7 +199,7 @@ Errors: `400`, `401`, `403`.
 
 ## Student endpoints (B6)
 
-For the three student screens: My classes, Overview and Class detail (`docs/SCREENS.md`). **Proposed in task A1 (#24); boeingxd (builds the screens) and Yayikast (security) need to approve it before any code is written.**
+For the three student screens: My classes, Overview and Class detail (`docs/SCREENS.md`). **Proposed in task A1 (#24). boeingxd and Yayikast have approved it; the decisions from the review are written at the end. The function behind `instructor_name` goes to Yayikast for review when it is built (it is a permissions change).**
 
 The rules are the same as everywhere else:
 
@@ -211,6 +211,8 @@ The rules are the same as everywhere else:
   > rate = windows attended / (windows held − windows excused), as a percentage with one decimal.
 
   So an **excused** window counts neither for nor against you: it is taken out of the bottom line. If nothing is left to divide by (no windows yet, or all excused), `rate_pct` is `null` and the screen shows "—", not 0.
+- **`sessions_counted` is the bottom line itself:** `sessions_counted = sessions_held − excused`, exactly the number `rate_pct` divides by. Every rate in this section comes with it, so the screens can show "X of Y sessions" (`attended` of `sessions_counted`) next to the rate without doing any arithmetic. With one excused window, a student who attended 10 of 12 windows sees "10 of 11" next to 90.9%, not "10 of 12".
+- **`instructor_name` is `string | null`.** It is `null` (and the screens leave the name out) when there is no name to show; it is nullable so a missing name never breaks a screen. The name is read through a narrow `SECURITY DEFINER` function, see "Decided" at the end.
 - **Never any GPS.** No `distance_m`, `gps_accuracy_m`, room coordinates or `recorded_by` is returned, only who/when/status.
 - "Windows held" are all of the section's check-in windows, including one that is still open (same as the instructor's report). The windows list below marks the open one, so the screen can say "Open now" instead of "Absent".
 - Times are ISO 8601 UTC strings. The screen formats them (date, and 24 h time) in the viewer's time zone, like the instructor screens do.
@@ -234,12 +236,26 @@ Response `200`:
     "sessions_held": 12,
     "attended": 11,
     "excused": 0,
+    "sessions_counted": 12,
     "rate_pct": 91.7
+  },
+  {
+    "section_id": "00000000-0000-0000-0000-0000000000e3",
+    "course_code": "ITS323",
+    "course_name": "Computer Networks",
+    "term": "2026-1",
+    "section_no": 1,
+    "instructor_name": null,
+    "sessions_held": 12,
+    "attended": 10,
+    "excused": 1,
+    "sessions_counted": 11,
+    "rate_pct": 90.9
   }
 ]
 ```
 
-`attended` counts `present` windows only. Errors: `401 UNAUTHENTICATED`.
+`attended` counts `present` windows only. `sessions_counted` is `sessions_held − excused` (the second class: 12 − 1 = 11, and 10 / 11 = 90.9%). `instructor_name` is `string | null` (shown `null` in the second class). Errors: `401 UNAUTHENTICATED`.
 
 ### `GET /api/my/overview`
 
@@ -249,17 +265,29 @@ Response `200`:
 
 ```json
 {
-  "overall": { "sessions_held": 24, "attended": 21, "excused": 1, "rate_pct": 91.3 },
+  "overall": { "sessions_held": 24, "attended": 21, "excused": 1, "sessions_counted": 23, "rate_pct": 91.3 },
   "classes": [
     {
-      "section_id": "…",
+      "section_id": "00000000-0000-0000-0000-0000000000e1",
       "course_code": "ITS332",
       "course_name": "Database Systems",
       "section_no": 1,
       "sessions_held": 12,
       "attended": 11,
       "excused": 0,
+      "sessions_counted": 12,
       "rate_pct": 91.7
+    },
+    {
+      "section_id": "00000000-0000-0000-0000-0000000000e3",
+      "course_code": "ITS323",
+      "course_name": "Computer Networks",
+      "section_no": 1,
+      "sessions_held": 12,
+      "attended": 10,
+      "excused": 1,
+      "sessions_counted": 11,
+      "rate_pct": 90.9
     }
   ],
   "recent_checkins": [
@@ -275,8 +303,8 @@ Response `200`:
 }
 ```
 
-- `overall` adds up all my classes and then applies the same rule once: `sum(attended) / (sum(held) − sum(excused))`. It is **not** the average of the per-class rates (a class with 4 windows would count as much as one with 40). `rate_pct` is `null` when there is nothing to divide by.
-- `classes` is the same data as `GET /api/my/classes` without the instructor and term (the Overview screen doesn't show them).
+- `overall` adds up all my classes and then applies the same rule once: `sum(attended) / (sum(held) − sum(excused))`, and `sessions_counted` is `sum(held) − sum(excused)`. In the example: held 12 + 12 = 24, attended 11 + 10 = 21, excused 0 + 1 = 1, counted 24 − 1 = 23, and 21 / 23 = 91.3%. It is **not** the average of the per-class rates (a class with 4 windows would count as much as one with 40); this is decided. `rate_pct` is `null` when there is nothing to divide by.
+- `classes` is the same data as `GET /api/my/classes` without the instructor and term (the Overview screen doesn't show them), including `sessions_counted`.
 - `recent_checkins` are my **last 5 `present` rows, newest first** (fewer if I have fewer). `method` is `qr` or `manual`, so the screen can tell "you checked in" from "your instructor marked you". An excused mark is not a check-in and is not listed.
 
 Errors: `401`.
@@ -299,6 +327,7 @@ Response `200`:
     "sessions_held": 12,
     "attended": 11,
     "excused": 0,
+    "sessions_counted": 12,
     "rate_pct": 91.7
   },
   "sessions": [
@@ -322,20 +351,22 @@ Response `200`:
 }
 ```
 
-`status` is `present`, `excused` or `absent` (absent = no row); `method` and `recorded_at` are `null` when absent. `class` is the same line as in `GET /api/my/classes`, so the header of the screen needs no second request. `:section_id` is checked as an id (`400 BAD_REQUEST`).
+`status` is `present`, `excused` or `absent` (absent = no row); `method` and `recorded_at` are `null` when absent. `class` is the same line as in `GET /api/my/classes` (including `sessions_counted`, and `instructor_name` as `string | null`), so the header of the screen needs no second request. `:section_id` is checked as an id (`400 BAD_REQUEST`).
 
 Errors: `400`, `401`, `403 FORBIDDEN`: you are not enrolled in that section. The same code is sent when the id doesn't exist, so nobody can probe which ids are real.
 
 ### How it would be built (step 2, after approval)
 
-- **Views** (migration, `security_invoker = true` like the P4 views, so RLS still applies): `v_section_attendance_rate` already has one line per enrolled student and section with `sessions_held`, `attended`, `excused` and `rate_pct`, so My classes and `classes` reuse it with `WHERE student_id = <me>`, joined to `sections` and `courses` for the course code, name and term. The windows list reuses `v_session_roster` with `opened_at` and `is_open` added at the end. A small new view gives the overall line and the last 5 check-ins.
+- **Views** (migration, `security_invoker = true` like the P4 views, so RLS still applies): `v_section_attendance_rate` already has one line per enrolled student and section with `sessions_held`, `attended`, `excused` and `rate_pct`, plus a new column `sessions_counted` (`sessions_held − excused`, added at the end of the view), so My classes and `classes` reuse it with `WHERE student_id = <me>`, joined to `sections` and `courses` for the course code, name and term. The windows list reuses `v_session_roster` with `opened_at` and `is_open` added at the end. A small new view gives the overall line and the last 5 check-ins.
 - **Code:** `api/src/student/` with `studentStore.ts` (every query in `withUser`) and `routes.ts`, in the same style as `api/src/reports/`, plus tests (a fake-db route test, and database tests that run as a real student under RLS: only my own rows, excused handling, a student of another section gets `403`, no GPS fields in any reply).
 
-### Open questions for approval
+### Decided
 
-1. **The instructor's name** (for Yayikast). Today a student **cannot read** the instructor's `users` row: the `users_select` policy only lets you see yourself and students you teach. To show `instructor_name` we need a deliberate, narrow permission, for example a `SECURITY DEFINER` function owned by `rls_definer` (with `SET search_path = pg_catalog, private`) that returns only the name, and only for a section the caller is enrolled in. This is a permissions change. If you'd rather not, we drop `instructor_name` from the screens.
-2. **Overall rate** (for boeingxd): pooled across classes (above) or an average of the class rates? Pooled is proposed because it is the same rule as the rate per class.
-3. **Open window counts in "held"** (for both): as proposed, a window you haven't checked in to yet lowers your rate until you do or it closes. This matches the instructor's report. The alternative is to count only closed windows.
+Decisions from Yayikast's review of this PR (Yayikast approved the contract):
+
+1. **Instructor name: option (a), a narrow `SECURITY DEFINER` function.** Today a student cannot read the instructor's `users` row: the `users_select` policy only lets you see yourself and students you teach. So the name comes from a function owned by `rls_definer` (with `SET search_path = pg_catalog, private`) that returns only the name, and only for a section the caller is enrolled in. `instructor_name` is **nullable** in the contract (`string | null`), so the screens leave the name out when there is none. The function is a permissions change: **when it is built in step 2 it goes to Yayikast for review** before it merges.
+2. **Overall rate: pooled** across classes (as written above), so it follows the same rule as the rate per class. **boeingxd still has the final say on this one.**
+3. **Open windows still count in "held"**, so a student's rate is the same number their instructor sees, and goes up straight away when they check in. The "Open now" row explains the dip to everyone else.
 
 ## Rosters, reports and manual marks (P4)
 
