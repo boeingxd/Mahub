@@ -2,7 +2,7 @@
 
 Every screen, who uses it, its URL, and the data it needs. The instructor endpoints are now in `docs/API.md`; the student ones are still **provisional** until someone writes them there (task A1).
 
-**Wired to the real API (25 Oct):** My classes, Start check-in (room picker), Live session, Projector, Session summary. **Still sample data:** every student screen. `docs/STATUS.md` has the current list.
+**Wired to the real API (25 Oct):** My classes, Start check-in (room picker), Live session, Projector, Session summary. **Student screens** (My classes, Overview, Class detail): wired to the student endpoints in `docs/API.md`; checked against mocked answers only until the endpoints exist. `docs/STATUS.md` has the current list.
 
 Pages live in `web/src/pages/`. Shared components (Pass, List, Button, Badge, Card, Table, SegmentedControl, Stat, Layout, StudentLayout) live in `web/src/ui/`. Colours, fonts and spacing are in `web/src/ui/tokens.css`. The look is described in `web/CONCEPT.md` and `web/DESIGN.md`.
 

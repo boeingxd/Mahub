@@ -159,3 +159,53 @@ export interface Room {
   id: string;
   name: string;
 }
+
+// The student's own screens: docs/API.md, "Student endpoints (B6)". The student
+// comes from the login cookie; none of these takes a student id.
+// Rates come from SQL views: the screen only shows them, never calculates one.
+export interface ClassLine {
+  section_id: string;
+  course_code: string;
+  course_name: string;
+  section_no: number;
+  sessions_held: number; // includes a window that is still open
+  attended: number;
+  excused: number;
+  // held minus excused: the exact denominator of rate_pct. Asked for in PR #77;
+  // until the API sends it the screens fall back to sessions_held.
+  sessions_counted?: number;
+  rate_pct: number | null; // null: nothing to divide by yet
+}
+
+export interface MyClass extends ClassLine {
+  term: string;
+  // Missing or null when the instructor's name can't be shown to students (PR #77, open question).
+  instructor_name?: string | null;
+}
+
+export interface MyOverview {
+  overall: Pick<ClassLine, 'sessions_held' | 'attended' | 'excused' | 'sessions_counted' | 'rate_pct'>;
+  classes: ClassLine[];
+  recent_checkins: {
+    class_session_id: string;
+    section_id: string;
+    course_code: string;
+    course_name: string;
+    recorded_at: string;
+    method: 'qr' | 'manual';
+  }[];
+}
+
+export interface MySession {
+  class_session_id: string;
+  opened_at: string;
+  is_open: boolean; // an open window with no check-in yet is "Open now", not "Absent"
+  status: 'present' | 'excused' | 'absent';
+  method: 'qr' | 'manual' | null;
+  recorded_at: string | null;
+}
+
+export interface MyClassSessions {
+  class: MyClass;
+  sessions: MySession[];
+}
