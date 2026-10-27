@@ -1,14 +1,25 @@
+import { useEffect, useRef } from 'react';
 import { useApi, type ClassSession, type MySection, type Roster, type RosterStudent } from './api';
 import type { RosterRow } from './pages/RosterPage';
+import { watchRoster } from './realtime';
 
 // Everything the live-session and projector screens need about one check-in
 // window. The session says which section it belongs to, and /my/sections has
-// that section's name and size. The roster is asked for again every 5 seconds
-// (shortcut: until the live WebSocket, task B5, lands).
+// that section's name and size. The roster is pushed live (realtime.ts: the API
+// says "something changed" and we ask for the roster again). The slow 30 s
+// refresh is the safety net if the WebSocket can't connect.
 export function useLiveSession(id: string) {
   const session = useApi<ClassSession>(`/class-sessions/${id}`);
   const sections = useApi<MySection[]>('/my/sections');
-  const roster = useApi<Roster>(`/class-sessions/${id}/roster`, 5000);
+  const roster = useApi<Roster>(`/class-sessions/${id}/roster`, 30_000);
+
+  // roster.refresh is a new function on every render; the ref keeps the
+  // WebSocket from being closed and reopened each time.
+  const refreshRoster = useRef(roster.refresh);
+  useEffect(() => {
+    refreshRoster.current = roster.refresh;
+  });
+  useEffect(() => watchRoster(id, () => refreshRoster.current()), [id]);
 
   const [a, b] = [session.state, sections.state];
   const section = a.status === 'done' && b.status === 'done' ? b.data.find((s) => s.id === a.data.section_id) : undefined;

@@ -66,7 +66,7 @@ export function SummaryPage() {
 
       {actionError && <ErrorBox code={actionError} />}
 
-      <Card title="Students" footer="Refreshes every few seconds.">
+      <Card title="Students" footer="Updates live.">
         <RosterTable rows={toRosterRows(students)} onMark={mark} />
       </Card>
     </>

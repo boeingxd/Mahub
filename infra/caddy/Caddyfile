@@ -89,7 +89,10 @@
 }
 
 # Door 1: your browser on the laptop, over HTTPS.
-localhost {
+# The second name, "caddy", is how other containers on the Compose network
+# reach this door (the k6 load test in load/): inside Docker, "localhost" is the
+# container itself. The certificate is made for both names.
+localhost, caddy {
 	# "internal" = Caddy acts as its own small certificate authority and
 	# issues a certificate for localhost. (Real domains would get one from
 	# Let's Encrypt automatically.) Plain http://localhost is redirected here.
@@ -102,5 +105,12 @@ localhost {
 # Cloudflare, and this port is not published, so it only exists inside Docker
 # (the tunnel container reaches it as http://caddy:8080).
 :8080 {
+	# The load test's login (POST /auth/test-login, only exists when the API runs
+	# with LOAD_TEST=1) must never be reachable through the tunnel, even if
+	# someone forgets to turn LOAD_TEST off. Door 1 still allows it.
+	handle /api/auth/test-login {
+		respond 404
+	}
+
 	import routes
 }

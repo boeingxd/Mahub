@@ -11,7 +11,8 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter } from 'k6/metrics';
 
-const BASE = __ENV.BASE || 'http://caddy:8080';
+// Door 1 over HTTPS, by its Compose-network name. Door 2 (:8080, the tunnel's door) refuses test-login on purpose.
+const BASE = __ENV.BASE || 'https://caddy';
 const QR_SECRET = __ENV.QR_SECRET;
 const STUDENTS = Number(__ENV.STUDENTS || 300);
 const SPREAD_SECONDS = Number(__ENV.SPREAD_SECONDS || 25);
@@ -42,9 +43,9 @@ function token(id, window) {
   return mac.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').slice(0, 16);
 }
 
-// The API's cookies are marked Secure (HTTPS only) and k6 obeys that, but we
-// talk to Caddy over plain HTTP inside Docker. So copy each cookie the API
-// set into k6's cookie jar by hand, as a normal one.
+// Belt and braces: copy each cookie the API set into k6's cookie jar by hand,
+// so the test also works over plain HTTP (the API's cookies are marked Secure
+// and k6 would not send them there).
 function keepCookies(res) {
   const jar = http.cookieJar();
   for (const name in res.cookies) jar.set(BASE, name, res.cookies[name][0].value, { path: '/' });

@@ -122,7 +122,7 @@ function LiveSession({ id }: { id: string }) {
           </div>
         </section>
       ) : (
-        <Card title="Students" footer="Refreshes every few seconds.">
+        <Card title="Students" footer="Updates live as students check in.">
           <RosterTable rows={toRosterRows(students)} live onMark={mark} />
         </Card>
       )}
