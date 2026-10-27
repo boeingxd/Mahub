@@ -8,6 +8,7 @@ import { assertRlsApplies, createPool } from './db.js';
 import { createRosterHub } from './realtime/hub.js';
 import { listenToRoster } from './realtime/listen.js';
 import { createReportsStore } from './reports/reportsStore.js';
+import { createStudentStore } from './student/studentStore.js';
 import { createSectionsStore } from './sections/sectionsStore.js';
 
 const config = loadConfig();
@@ -32,6 +33,7 @@ const app = buildApp({
   checkin: { qrSecret: config.QR_SECRET, store: qrStore, checkins: createCheckinStore(pool) },
   sections: { store: createSectionsStore(pool) },
   reports: { store: createReportsStore(pool) },
+  student: { store: createStudentStore(pool) },
   realtime: { hub, store: qrStore },
 });
 

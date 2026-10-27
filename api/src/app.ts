@@ -6,6 +6,7 @@ import type { Queryable } from './db.js';
 import { registerCheckinLimit, registerIpLimit } from './rateLimit.js';
 import { registerRealtime, type RealtimeOptions } from './realtime/routes.js';
 import { registerReports, type ReportsOptions } from './reports/routes.js';
+import { registerStudent, type StudentOptions } from './student/routes.js';
 import { registerSections, type SectionsOptions } from './sections/routes.js';
 
 export interface AppOptions {
@@ -23,12 +24,13 @@ export interface AppOptions {
   sections?: SectionsOptions;
   // Rosters, attendance rates and manual marks (task P4). Needs `auth` too.
   reports?: ReportsOptions;
+  student?: StudentOptions;
   realtime?: RealtimeOptions;
 }
 
 // Builds the Fastify app without starting it. server.ts calls listen();
 // tests call app.inject() to send fake requests without opening a port.
-export function buildApp({ db, logLevel = 'info', trustProxy = '', ipLimit, auth, checkin, sections, reports, realtime }: AppOptions): FastifyInstance {
+export function buildApp({ db, logLevel = 'info', trustProxy = '', ipLimit, auth, checkin, sections, reports, student, realtime }: AppOptions): FastifyInstance {
   const app = Fastify({
     logger: {
       level: logLevel,
@@ -81,6 +83,7 @@ export function buildApp({ db, logLevel = 'info', trustProxy = '', ipLimit, auth
       if (checkin) await registerCheckin(scope, checkin);
       if (sections) await registerSections(scope, sections);
       if (reports) await registerReports(scope, reports);
+      if (student) await registerStudent(scope, student);
       if (realtime) await registerRealtime(scope, realtime);
     });
   }
