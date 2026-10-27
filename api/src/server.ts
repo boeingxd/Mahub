@@ -6,6 +6,7 @@ import { createQrStore } from './checkin/qrStore.js';
 import { loadConfig } from './config.js';
 import { assertRlsApplies, createPool } from './db.js';
 import { createReportsStore } from './reports/reportsStore.js';
+import { createStudentStore } from './student/studentStore.js';
 import { createSectionsStore } from './sections/sectionsStore.js';
 
 const config = loadConfig();
@@ -28,6 +29,7 @@ const app = buildApp({
   checkin: { qrSecret: config.QR_SECRET, store: createQrStore(pool), checkins: createCheckinStore(pool) },
   sections: { store: createSectionsStore(pool) },
   reports: { store: createReportsStore(pool) },
+  student: { store: createStudentStore(pool) },
 });
 
 if (config.LOAD_TEST === '1') app.log.warn('LOAD_TEST is on: POST /auth/test-login lets anyone sign in. Never use this for real.');

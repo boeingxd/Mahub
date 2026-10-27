@@ -199,7 +199,7 @@ Errors: `400`, `401`, `403`.
 
 ## Student endpoints (B6)
 
-For the three student screens: My classes, Overview and Class detail (`docs/SCREENS.md`). **Proposed in task A1 (#24). boeingxd and Yayikast have approved it; the decisions from the review are written at the end. The function behind `instructor_name` goes to Yayikast for review when it is built (it is a permissions change).**
+For the three student screens: My classes, Overview and Class detail (`docs/SCREENS.md`). **Approved (task A1, #24) and built in `api/src/student/`. The function behind `instructor_name` (`private.student_instructor_name`) is a permissions change and goes to Yayikast for review.**
 
 The rules are the same as everywhere else:
 
@@ -355,7 +355,7 @@ Response `200`:
 
 Errors: `400`, `401`, `403 FORBIDDEN`: you are not enrolled in that section. The same code is sent when the id doesn't exist, so nobody can probe which ids are real.
 
-### How it would be built (step 2, after approval)
+### How it is built
 
 - **Views** (migration, `security_invoker = true` like the P4 views, so RLS still applies): `v_section_attendance_rate` already has one line per enrolled student and section with `sessions_held`, `attended`, `excused` and `rate_pct`, plus a new column `sessions_counted` (`sessions_held − excused`, added at the end of the view), so My classes and `classes` reuse it with `WHERE student_id = <me>`, joined to `sections` and `courses` for the course code, name and term. The windows list reuses `v_session_roster` with `opened_at` and `is_open` added at the end. A small new view gives the overall line and the last 5 check-ins.
 - **Code:** `api/src/student/` with `studentStore.ts` (every query in `withUser`) and `routes.ts`, in the same style as `api/src/reports/`, plus tests (a fake-db route test, and database tests that run as a real student under RLS: only my own rows, excused handling, a student of another section gets `403`, no GPS fields in any reply).
