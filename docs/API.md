@@ -23,6 +23,7 @@ One format for every error: `{"error": "CODE"}`. The code is for the screen to t
 | 409 | `SESSION_CLOSED` | The window is already closed |
 | 409 | `ALREADY_PRESENT` | Check-in: you are already marked for this window |
 | 422 | `OUT_OF_RANGE` | Check-in: you are too far from the room |
+| 422 | `LOCATION_IMPRECISE` | Check-in: too far from the room, and the phone's accuracy is worse than 100 m (usually "approximate location" is on) |
 | 429 | `RATE_LIMITED` | Too many requests. Per IP on every endpoint (3000 a minute); per signed-in user on `/checkin/*` (5 a minute). See `docs/NETWORK.md` |
 | 500 | `INTERNAL` | Our bug. Details are in the server log, never in the reply |
 
@@ -114,9 +115,9 @@ Response `200`:
 { "result": "present", "distance_m": 12.4 }
 ```
 
-Errors: `400 BAD_REQUEST` (body), `400 QR_EXPIRED` (no scan, or older than 90 s), `401`, `403 NOT_ENROLLED`, `409 SESSION_CLOSED`, `409 ALREADY_PRESENT`, `422 OUT_OF_RANGE`.
+Errors: `400 BAD_REQUEST` (body), `400 QR_EXPIRED` (no scan, or older than 90 s), `401`, `403 NOT_ENROLLED`, `409 SESSION_CLOSED`, `409 ALREADY_PRESENT`, `422 OUT_OF_RANGE`, `422 LOCATION_IMPRECISE` (out of range with an accuracy over 100 m; logged as `out_of_range`).
 
-The scan is used up after an answer, so scanning again is needed for another try. The one exception is `OUT_OF_RANGE`: the scan is kept, so the student can retry with a better GPS fix within the same 90 s.
+The scan is used up after an answer, so scanning again is needed for another try. The exceptions are `OUT_OF_RANGE` and `LOCATION_IMPRECISE`: the scan is kept, so the student can retry with a better GPS fix within the same 90 s.
 
 ## Sections and check-in windows (P3)
 

@@ -95,6 +95,10 @@ export const errorText: Record<string, { title: string; message: string }> = {
     title: "You're too far from the room",
     message: 'Move closer to the front of the room, wait for a better GPS signal, then try again.',
   },
+  LOCATION_IMPRECISE: {
+    title: 'Turn on precise location',
+    message: "Your phone only shared an approximate location. Allow precise location for your browser (Android: Settings → Apps → Chrome → Permissions → Location → Use precise location; iPhone: Settings → Privacy → Location Services → Safari Websites → Precise Location), then try again.",
+  },
   ALREADY_PRESENT: { title: "You're already checked in", message: 'Your attendance is already recorded.' },
   ROOM_NOT_FOUND: { title: 'Room not found', message: 'Pick a room from the list and try again.' },
   SESSION_ALREADY_OPEN: { title: 'Already open', message: 'This class already has a check-in open.' },
