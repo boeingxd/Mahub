@@ -182,4 +182,28 @@ describe('POST /checkin/complete', () => {
     const res = await complete(GOOD_BODY, cookies);
     expect(cookie(res, 'mahub_scan')).toBeUndefined();
   });
+
+  // Chrome's "approximate location" reports an accuracy of about 2000 m and a
+  // point that can be far off, so the student was told "too far" while
+  // standing in the room (real run, 27 Oct). Tell them how to fix it instead.
+  it('out of range with a poor accuracy (over 100 m) answers LOCATION_IMPRECISE and keeps the scan', async () => {
+    nextOutcome = 'out_of_range';
+    const cookies = { mahub_session: await loginCookie(), mahub_scan: await scanCookie() };
+    const res = await complete({ ...GOOD_BODY, accuracy: 2000 }, cookies);
+    expect(res.statusCode).toBe(422);
+    expect(res.json()).toEqual({ error: 'LOCATION_IMPRECISE' });
+    expect(cookie(res, 'mahub_scan')).toBeUndefined();
+  });
+
+  it('a 100 m accuracy still counts as precise: OUT_OF_RANGE', async () => {
+    nextOutcome = 'out_of_range';
+    const res = await complete({ ...GOOD_BODY, accuracy: 100 }, { mahub_session: await loginCookie(), mahub_scan: await scanCookie() });
+    expect(res.json()).toEqual({ error: 'OUT_OF_RANGE' });
+  });
+
+  it('a poor accuracy inside the room is still a check-in', async () => {
+    nextOutcome = 'ok';
+    const res = await complete({ ...GOOD_BODY, accuracy: 2000 }, { mahub_session: await loginCookie(), mahub_scan: await scanCookie() });
+    expect(res.statusCode).toBe(200);
+  });
 });

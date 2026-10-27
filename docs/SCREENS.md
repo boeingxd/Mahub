@@ -66,6 +66,7 @@ Old links still work: `/login` → `/`, and `/roster/:id` → `/session/:id`.
 | `NOT_ENROLLED` | "You're not enrolled in this class." |
 | `SESSION_CLOSED` | "Check-in for this class has closed." |
 | `OUT_OF_RANGE` | "You seem to be outside the classroom. Move closer, or ask your instructor." |
+| `LOCATION_IMPRECISE` | "Turn on precise location", with the steps for Android and iPhone |
 | `ALREADY_PRESENT` | "You're already checked in." |
 | `RATE_LIMITED` | "Too many tries. Wait a minute and try again." |
 

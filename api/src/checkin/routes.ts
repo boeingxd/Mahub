@@ -42,6 +42,12 @@ const REFUSALS: Record<Exclude<CheckinOutcome, 'ok'>, { status: number; error: s
   already_present: { status: 409, error: 'ALREADY_PRESENT' },
 };
 
+// Worse than this, the phone is guessing (Chrome's "approximate location"
+// says about 2000 m), so "too far" is probably the phone's fault, not the
+// student's. Only the answer changes: the attempt is still logged as
+// out_of_range with its accuracy, and it is still refused.
+export const IMPRECISE_ACCURACY_M = 100;
+
 // Must be registered in the same scope as registerAuth (it uses its cookies).
 export async function registerCheckin(app: FastifyInstance, { qrSecret, store, checkins, now = Date.now }: CheckinOptions) {
   // The projector asks for the current QR every few seconds (task B6).
@@ -122,11 +128,14 @@ export async function registerCheckin(app: FastifyInstance, { qrSecret, store, c
     const { outcome, distanceM } = await checkins.complete(userId, classSessionId, body.data);
 
     // The scan is used up, so the same cookie can't be sent again. Except
-    // after OUT_OF_RANGE: then the student may retry with a better GPS fix
-    // within the same 90 s.
+    // after OUT_OF_RANGE (or LOCATION_IMPRECISE): then the student may retry
+    // with a better GPS fix within the same 90 s.
     if (outcome !== 'out_of_range') request.scan.delete();
 
     if (outcome === 'ok') return { result: 'present', distance_m: distanceM };
+    if (outcome === 'out_of_range' && body.data.accuracy > IMPRECISE_ACCURACY_M) {
+      return reply.code(422).send({ error: 'LOCATION_IMPRECISE' });
+    }
     const { status, error } = REFUSALS[outcome];
     return reply.code(status).send({ error });
   });

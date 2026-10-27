@@ -109,8 +109,10 @@ export function CheckinPage() {
 
   const busy = state.step === 'asking' || state.step === 'sending';
   // The scan is used up after most errors, so the student has to scan the QR again.
-  // OUT_OF_RANGE keeps it for 90 s, so a retry with better GPS is allowed.
-  const canRetry = state.step === 'locationError' || (state.step === 'apiError' && state.code === 'OUT_OF_RANGE');
+  // OUT_OF_RANGE and LOCATION_IMPRECISE keep it for 90 s, so a retry with better GPS is allowed.
+  const canRetry =
+    state.step === 'locationError' ||
+    (state.step === 'apiError' && (state.code === 'OUT_OF_RANGE' || state.code === 'LOCATION_IMPRECISE'));
   const showButton = state.step === 'idle' || busy || canRetry;
   const buttonText =
     state.step === 'asking'
