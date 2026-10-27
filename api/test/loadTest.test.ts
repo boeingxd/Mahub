@@ -11,14 +11,18 @@ import type { Queryable } from '../src/db.js';
 
 const google = {} as GoogleAuth;
 const STUDENT = randomUUID();
+let storeCalls = 0; // how many times the login policy reached for the user store
 const users = {
   async findByGoogleSub() {
+    storeCalls++;
     return null;
   },
   async findByEmail() {
+    storeCalls++;
     return null;
   },
   async upsertStudent() {
+    storeCalls++;
     return { id: STUDENT, email: '6730000001@g.siit.tu.ac.th', googleSub: 'x' };
   },
   async getProfile() {
@@ -56,6 +60,43 @@ describe('POST /auth/test-login', () => {
     const app = build(true);
     const res = await login(app, 'stranger@example.com');
     expect(res.statusCode).toBe(403);
+    await app.close();
+  });
+});
+
+describe('POST /auth/test-login only accepts the load test\'s own accounts', () => {
+  // A real student or instructor who hasn't signed in yet must never get the
+  // fake Google id saved on their account (it would lock them out for good).
+  it.each([
+    '6722782164@g.siit.tu.ac.th', // a real-looking student number
+    '6730000001@g.siit.tu.ac.th.evil.test',
+    '673000000001@g.siit.tu.ac.th', // too many digits
+    '67300000@g.siit.tu.ac.th', // too few
+    'real.instructor@siit.tu.ac.th',
+    'someone@gmail.com',
+    'x@notexample.com',
+    'a@b@example.com',
+  ])('refuses %s without touching the user store', async (email) => {
+    storeCalls = 0;
+    const app = build(true);
+    const res = await login(app, email);
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toEqual({ error: 'FORBIDDEN' });
+    expect(storeCalls).toBe(0);
+    await app.close();
+  });
+
+  it.each(['6730000001@g.siit.tu.ac.th', '6730012345@G.SIIT.TU.AC.TH'])('signs the load-test student %s in', async (email) => {
+    const app = build(true);
+    expect((await login(app, email)).statusCode).toBe(204);
+    await app.close();
+  });
+
+  it('lets an example.com account reach the login policy (which decides, as usual)', async () => {
+    storeCalls = 0;
+    const app = build(true);
+    await login(app, 'instructor1@example.com');
+    expect(storeCalls).toBeGreaterThan(0);
     await app.close();
   });
 });

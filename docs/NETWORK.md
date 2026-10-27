@@ -88,7 +88,7 @@ Over the limit the API answers `429` with `{"error":"RATE_LIMITED"}`. A request 
 
 Goal (issue #39): a whole class of 300 students checks in within about 30 seconds, 95% of requests answer in under 500 ms, and nothing fails.
 
-Each fake student does what a phone does, minus Google: sign in, open the scan link, send the location. They start at random moments over 25 seconds. k6 runs in Docker on the Compose network and talks to Caddy's plain-HTTP door (`http://caddy:8080`), so the traffic passes Caddy, the API and the database, like a real check-in.
+Each fake student does what a phone does, minus Google: sign in, open the scan link, send the location. They start at random moments over 25 seconds. k6 runs in Docker on the Compose network and talks to Caddy's HTTPS door by its Compose name (`https://caddy`; door 1 answers to both `localhost` and `caddy`), so the traffic passes Caddy, the API and the database, like a real check-in. The tunnel's door (`:8080`) answers `404` for `/api/auth/test-login` on purpose, so the load-test login can never be reached through the tunnel.
 
 **Results** (laptop, Docker Desktop, 300 students, 904 requests):
 
