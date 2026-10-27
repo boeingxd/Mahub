@@ -8,7 +8,9 @@ About 8 minutes. One laptop mirrored to the projector (instructor), one phone (s
 2. `.env` has the Google credentials and `DEV_INSTRUCTOR_EMAIL` (your real Google email); `npm run db:dev-instructor` has been run. **No Google credentials yet?** Start with `LOAD_TEST=1` and sign in through `POST /auth/test-login` instead, and say so out loud: Google sign-in is the one part not shown live.
 3. Phone test: `docker compose --profile tunnel up -d tunnel`, wait 10 s, copy the address (`docs/NETWORK.md`, "Phone testing"). Add it to the Google redirect URIs.
 4. Open three things in advance: the instructor page, a terminal with `docker compose exec db psql -U postgres -d mahub`, and a second terminal in `api/`.
-5. Sign the phone in once as a student enrolled in ITS332 (a `67…@g.siit.tu.ac.th` account), then sign out, so the demo starts at the sign-in screen.
+5. **Phone location:** Chrome must have *precise* location (Android: Settings → Apps → Chrome → Permissions → Location → Use precise location). With *approximate* the phone reports an accuracy of about 2000 m and the check refuses it (`out_of_range`). The seeded rooms are at SIIT Rangsit, so away from campus add a demo room where you will stand (local database only, 50 m radius), then pick it in the room picker:
+   `docker compose exec db psql -U postgres -d mahub -c "insert into api.rooms (name, location, radius_m) values ('Demo room', ST_SetSRID(ST_MakePoint(<lng>, <lat>),4326)::geography, 50);"`
+6. Sign the phone in once as a student enrolled in ITS332 (a `67…@g.siit.tu.ac.th` account), then sign out, so the demo starts at the sign-in screen.
 
 ## The script
 
