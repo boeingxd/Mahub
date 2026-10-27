@@ -13,6 +13,9 @@ export default defineConfig({
       // During `npm run dev`, send API calls to the real stack behind Caddy.
       // secure: false accepts Caddy's local certificate.
       '/api': { target: 'https://localhost', changeOrigin: true, secure: false },
+      // The live roster WebSocket. The API only accepts a socket whose Origin is
+      // its own address, so the dev page's origin (127.0.0.1:5173) is replaced.
+      '/ws': { target: 'https://localhost', ws: true, changeOrigin: true, secure: false, headers: { origin: 'https://localhost' } },
     },
   },
 });
