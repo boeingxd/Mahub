@@ -21,7 +21,7 @@ One page: what is built, what is next, and who needs what from whom. Update it w
 | Live roster (WebSocket) | Done (#75) | A trigger on `attendance` sends `pg_notify`, the API pushes it over `/ws` to the instructor of that window, the browser reconnects by itself. Design in `docs/API.md` ("Live roster") |
 | Student endpoints | Done (#77 contract, #82 code) | `GET /my/classes`, `/my/overview`, `/my/classes/:id/sessions` (migration `20261027120000_student_views.sql`). Checked on the live stack on 27 Oct with a test-login student: 403 for a class that student isn't in, 401 signed out. `instructor_name` is filled in for enrolled students (Yayikast approved the small function that reads it); the screens still cope with `null` |
 | Regression tests | Done | Y6: one file per old bug in `api/test/regressions/` |
-| Threat model | Written | `docs/THREAT_MODEL.md` (Y5). Yayikast will add the known limit that an open socket outlives logout |
+| Threat model | Written | `docs/THREAT_MODEL.md` (Y5). Rate limits, the audit trigger and the live-roster socket (N9, an accepted risk) are in it |
 | Caddy, Cloudflare Tunnel | Done | See `docs/NETWORK.md` |
 
 ## The web app: real or sample?
