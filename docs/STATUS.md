@@ -9,7 +9,7 @@ One page: what is built, what is next, and who needs what from whom. Update it w
 | Piece | State | Notes |
 |---|---|---|
 | Database | Done | Migrations: init, tables, row-level security, QR helper, report views, GPS checks, audit trigger (P5), the roster NOTIFY trigger (#75) and the student views (#82). Indexes and `EXPLAIN ANALYZE` write-up (P6, `docs/PERFORMANCE.md`). Seed: 2 courses, rooms, instructors, students. ERD done |
-| Login | Done (code) | Google sign-in with the ADR 0007 policy, `GET /api/me`. The API logs in as `mahub_api` under row-level security, never as a superuser. **Never completed against real Google yet**: the credentials arrived on 27 Oct, but Google answered `redirect_uri_mismatch` for the tunnel address, so Yayikast is checking the OAuth client |
+| Login | Done (code) | Google sign-in with the ADR 0007 policy, `GET /api/me`. The API logs in as `mahub_api` under row-level security, never as a superuser. **Run against real Google on 27 Oct** (through the tunnel, signed in with a SIIT account) |
 | QR | Done | Rotating HMAC QR for the projector and the scan link (`/c/...`) |
 | Check-in windows | Done | `GET /my/sections`, `GET /rooms`, open, close, get one window |
 | Roster, reports, manual marks | Done | `GET /class-sessions/:id/roster`, `GET /sections/:id/report` (JSON or CSV), `POST /class-sessions/:id/attendance` |
@@ -38,7 +38,7 @@ One page: what is built, what is next, and who needs what from whom. Update it w
 | Student classes, overview, class detail | **Real** (#78): read the student endpoints. Checked on 27 Oct in a phone-size browser against the live API (7 of 10 present); the Excused and Open now rows have only been seen with mocked answers |
 | `/dev`, `/checkin?preview=done`, `web/src/fakeData.ts` | Temporary. Delete when no screen needs them |
 
-**Checked on 27 Oct:** the whole instructor and student flow end to end on the real stack (Caddy, API, database), signing in with the test login instead of Google: open a check-in, scan, check in, live count, manual mark, end session, summary. The student and instructor screens were also looked at in a browser at phone size in light and dark, and on a real phone against sample data. The student screens were then checked against the real student endpoints (27 Oct, after #82). **Still untested:** real Google sign-in, and a real phone through the tunnel on the real stack.
+**Checked on 27 Oct:** the whole instructor and student flow end to end on the real stack (Caddy, API, database), signing in with the test login instead of Google: open a check-in, scan, check in, live count, manual mark, end session, summary. The student and instructor screens were also looked at in a browser at phone size in light and dark, and on a real phone against sample data. The student screens were then checked against the real student endpoints (27 Oct, after #82). **Real run, 27 Oct:** real Google sign-in through the tunnel, the instructor on the laptop, and a student check-in from a real phone (Samsung S23 Ultra, Chrome, mobile data): the location check passed at 6 m with an accuracy of 11 m. The first tries failed with `out_of_range` because Chrome had only been given *approximate* location (accuracy 2000 m); with *precise* location on it works. **Still untested:** a second phone at the same time, and the live roster update on the laptop during this real run (it was checked earlier with the test login).
 
 How the web app talks to the API: `web/src/api.ts` (`useApi`, `apiPost`, friendly text per error code), `web/src/useLiveSession.ts` and `web/src/realtime.ts`, `web/src/ui/LiveQr.tsx`, `web/src/ui/ApiStatus.tsx`, `web/src/studentFormat.ts`. New screens should use these (loading, error, done) rather than call `fetch` directly.
 
@@ -47,7 +47,6 @@ How the web app talks to the API: `web/src/api.ts` (`useApi`, `apiPost`, friendl
 | Task | Who | Notes |
 |---|---|---|
 | #24 A1 API contract (`docs/API.md`) | all three | Live roster (#71) and student endpoints (#77) are in |
-| Real Google sign-in, full run | boeingxd, Yayikast | Credentials and `.env` are ready and the tunnel address is registered in the Google console, but Google still answers `redirect_uri_mismatch`. Yayikast is checking that the URI is on the same OAuth client as the client ID in `.env` |
 | #44 A2 demo script, slides, rehearsals | all three | Script written (`docs/DEMO.md`, #81), not rehearsed. There is no written rubric, so it ends with a topic map. Slides and two rehearsals are still to do |
 
 After the screens are real, boeingxd plans a **UI revamp** (a new look; see "Decisions"). It is not started and is not needed for the demo.
@@ -64,7 +63,7 @@ After the screens are real, boeingxd plans a **UI revamp** (a new look; see "Dec
 
 ## Who needs what from whom
 
-- **Yayikast → boeingxd:** a working Google sign-in: the OAuth client whose ID is in `.env` must list the tunnel callback `https://<tunnel address>/api/auth/callback`, and every account that will sign in must be a test user (the Google app is in "Testing" mode). Her answer on the `redirect_uri_mismatch` blocks the full run.
+- **Yayikast → boeingxd:** nothing open. Every account that will sign in on a phone during the demo must be a Google test user (the Google app is in "Testing" mode), so send her the list.
 - **boeingxd → Yayikast:** the tunnel address, and the phone accounts to add as test users. The address changes on every tunnel restart, so don't restart it.
 - **boeingxd:** set branch protection on `main`, rehearse the demo, and confirm the demo date.
 - **Everyone:** agree the API contract (A1) before building on top of it. Schema or permission changes need Yayikast's review ("Clear mark" needs a DELETE grant on attendance; see `docs/API.md`, "Not decided yet").
