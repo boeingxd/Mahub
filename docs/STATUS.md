@@ -64,6 +64,7 @@ After the screens are real, boeingxd plans a **UI revamp** (a new look; see "Dec
 ## Who needs what from whom
 
 - **Yayikast → boeingxd:** nothing open. Every account that will sign in on a phone during the demo must be a Google test user (the Google app is in "Testing" mode), so send her the list.
+- **Hosting (29 Oct):** the quick-tunnel address from 27 Oct is gone (the laptop stack is stopped), so the next phone run needs a new address registered in Google. The plan to get off the laptop is `docs/HOSTING.md` (PR #88): Plan A, a free Azure for Students VM plus a free GitHub Student Pack domain behind a Cloudflare named tunnel (one compose line changes, the callback is registered once), or Plan B, Cloudflare-only (an API rewrite). Azure is active; the Pack offers unlock about 30 Oct. Not decided.
 - **boeingxd → Yayikast:** the tunnel address, and the phone accounts to add as test users. The address changes on every tunnel restart, so don't restart it.
 - **boeingxd:** set branch protection on `main`, rehearse the demo, and confirm the demo date.
 - **Everyone:** agree the API contract (A1) before building on top of it. Schema or permission changes need Yayikast's review ("Clear mark" needs a DELETE grant on attendance; see `docs/API.md`, "Not decided yet").

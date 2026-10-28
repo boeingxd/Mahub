@@ -12,6 +12,10 @@ About 8 minutes. One laptop mirrored to the projector (instructor), one phone (s
    `docker compose exec db psql -U postgres -d mahub -c "insert into api.rooms (name, location, radius_m) values ('Demo room', ST_SetSRID(ST_MakePoint(<lng>, <lat>),4326)::geography, 50);"`
 6. Sign the phone in once as a student enrolled in ITS332 (a `67…@g.siit.tu.ac.th` account), then sign out, so the demo starts at the sign-in screen.
 
+**Keep the tunnel alive:** run `caffeinate -dimsu` so the laptop never sleeps, stay on one network, and check `curl https://<tunnel address>/api/readyz` a few minutes before you start. If the address stops resolving, recreate the tunnel (see `docs/NETWORK.md`, "Phone testing"): it gets a new address that Yayikast must register in Google and that goes into `.env`. Fallback: the test login on `https://localhost`.
+
+**Sections:** ITS332 has two sections in the seed (section 2 comes with 15 students and a placeholder instructor). On boeingxd's machine section 2 was taken over by the demo instructor and 12 more students were enrolled by SQL (local only, not in the repo), so My classes shows three cards. Starting check-in on section 1 and then section 2 shows that each section has its own QR, roster and rates. Classes, sections and enrollments are created by an admin in the database; there is no screen for it (ADR 0008, `docs/PERMISSIONS.md`).
+
 ## The script
 
 | # | Do | Say / point at | Course |
